@@ -180,6 +180,7 @@ def main():
 
     matrix = create_matrix()
     canvas = startup_test(matrix)
+    canvas = startup_test_old(matrix)
 
     graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "P1")
     graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), "P2")
