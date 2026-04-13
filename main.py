@@ -149,7 +149,7 @@ def startup_test(matrix: RGBMatrix):
 
     canvas.Clear()
     canvas = matrix.SwapOnVSync(canvas)
-    panel_jump_test(RGBMatrix, canvas)
+    panel_jump_test(matrix, canvas)
     return canvas
 
 def startup_test_old(matrix: RGBMatrix):
@@ -184,11 +184,8 @@ def main():
     graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "P1")
     graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), "P2")
     canvas = matrix.SwapOnVSync(canvas)
-    matrix = create_matrix()
     print(f"Matrix ready: {matrix.width}x{matrix.height} "
           f"({matrix.width // PANEL_W} panel(s) chained)")
-
-    canvas = startup_test(matrix)
 
     print("Startup complete. Press Ctrl+C to exit.")
     try:
