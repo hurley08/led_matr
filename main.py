@@ -90,7 +90,7 @@ PANEL_H = 64
 def panel_jump_test(matrix: RGBMatrix, canvas):
     """Animate a moving square jumping between the two panels for visual inspection."""
     square_size = 10
-    speed = 5  # pixels per frame
+    speed = 8 # pixels per frame
     delay = 0.05  # seconds between frames
     
     # Start from left edge
@@ -107,12 +107,33 @@ def panel_jump_test(matrix: RGBMatrix, canvas):
         canvas = matrix.SwapOnVSync(canvas)
         time.sleep(delay)
         x += speed
-    
+
+    def panel_diag_jump_test(matrix:RGBMatrix, radius:int, canvas):
+        """Animate a square jumping diagonally between the two panels."""
+        circle_size = pi * radius / 2
+        speed = 8 # pixels per frame
+        delay = 0.05  # seconds between frames
+        
+        # Start from top-left corner of left panel
+        x = 0
+        y = 0
+        
+        while x < 128 - circle_size and y < PANEL_H - circle_size:
+            canvas.Clear()
+            # Draw the circle
+            for px in range(x, x + circle_size):
+                for py in range(y, y + circle_size):
+                    canvas.SetPixel(px, py, 255, 255, 255) e
+            
+            canvas = matrix.SwapOnVSync(canvas)
+            time.sleep(delay)
+            x += speed
+            y += speed
     # Bounce back to the left
     while x > 0:
         canvas.Clear()
-        for px in range(x, x + square_size):
-            for py in range(y, y + square_size):
+        for px in range(x, x + circle_size):
+            for py in range(y, y + circle_size):
                 canvas.SetPixel(px, py, 255, 255, 255)
         
         canvas = matrix.SwapOnVSync(canvas)
@@ -157,7 +178,7 @@ def startup_test_old(matrix: RGBMatrix):
     for colour in [(255,0,0), (0,255,0), (0,0,255), (255,255,255), (0,0,0)]:
         fill(canvas, *colour)
         canvas = matrix.SwapOnVSync(canvas)
-        time.sleep(0.3)
+        time.sleep(1.5)
 
     # Draw red border on left panel, blue border on right panel
     canvas.Clear()
@@ -181,7 +202,9 @@ def main():
     matrix = create_matrix()
     canvas = startup_test(matrix)
     canvas = startup_test_old(matrix)
-
+    canvas = panel_diag_jump_test(matrix, 10, canvas)
+    
+    
     graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "P1")
     graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), "P2")
     canvas = matrix.SwapOnVSync(canvas)
