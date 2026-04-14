@@ -123,7 +123,7 @@ def panel_jump_test(matrix: RGBMatrix, canvas):
             # Draw the circle
             for px in range(x, x + circle_size):
                 for py in range(y, y + circle_size):
-                    canvas.SetPixel(px, py, 255, 255, 255) e
+                    canvas.SetPixel(px, py, 255, 255, 255)
             
             canvas = matrix.SwapOnVSync(canvas)
             time.sleep(delay)
@@ -203,7 +203,7 @@ def main():
     canvas = startup_test(matrix)
     canvas = startup_test_old(matrix)
     canvas = panel_diag_jump_test(matrix, 10, canvas)
-    
+
     
     graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "P1")
     graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), "P2")
@@ -222,3 +222,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
