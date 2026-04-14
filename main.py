@@ -108,32 +108,11 @@ def panel_jump_test(matrix: RGBMatrix, canvas):
         time.sleep(delay)
         x += speed
 
-    def panel_diag_jump_test(matrix:RGBMatrix, radius:int, canvas):
-        """Animate a square jumping diagonally between the two panels."""
-        circle_size = math.pi * radius / 2
-        speed = 8 # pixels per frame
-        delay = 0.05  # seconds between frames
-        
-        # Start from top-left corner of left panel
-        x = 0
-        y = 0
-        
-        while x < 128 - circle_size and y < PANEL_H - circle_size:
-            canvas.Clear()
-            # Draw the circle
-            for px in range(x, x + circle_size):
-                for py in range(y, y + circle_size):
-                    canvas.SetPixel(px, py, 255, 255, 255)
-            
-            canvas = matrix.SwapOnVSync(canvas)
-            time.sleep(delay)
-            x += speed
-            y += speed
     # Bounce back to the left
     while x > 0:
         canvas.Clear()
-        for px in range(x, x + circle_size):
-            for py in range(y, y + circle_size):
+        for px in range(x, x + square_size):
+            for py in range(y, y + square_size):
                 canvas.SetPixel(px, py, 255, 255, 255)
         
         canvas = matrix.SwapOnVSync(canvas)
@@ -141,6 +120,45 @@ def panel_jump_test(matrix: RGBMatrix, canvas):
         x -= speed
 
 
+def panel_diag_jump_test(matrix: RGBMatrix, radius: int, canvas):
+    """Animate a circle jumping diagonally between the two panels."""
+    speed = 8  # pixels per frame
+    delay = 0.05  # seconds between frames
+
+    # Start from top-left corner of left panel
+    x = 0
+    y = 0
+
+    while x < 128 - radius * 2 and y < PANEL_H - radius * 2:
+        canvas.Clear()
+        # Draw the circle using distance check
+        for px in range(x, x + radius * 2):
+            for py in range(y, y + radius * 2):
+                # Check if point is within circle
+                dx = px - (x + radius)
+                dy = py - (y + radius)
+                if dx*dx + dy*dy <= radius*radius:
+                    canvas.SetPixel(px, py, 255, 255, 255)
+
+        canvas = matrix.SwapOnVSync(canvas)
+        time.sleep(delay)
+        x += speed
+        y += speed
+
+    # Bounce back diagonally
+    while x > 0 and y > 0:
+        canvas.Clear()
+        for px in range(x, x + radius * 2):
+            for py in range(y, y + radius * 2):
+                dx = px - (x + radius)
+                dy = py - (y + radius)
+                if dx*dx + dy*dy <= radius*radius:
+                    canvas.SetPixel(px, py, 255, 255, 255)
+
+        canvas = matrix.SwapOnVSync(canvas)
+        time.sleep(delay)
+        x -= speed
+        y -= speed
 
 
 def startup_test(matrix: RGBMatrix):
