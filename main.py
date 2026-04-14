@@ -110,7 +110,7 @@ def panel_jump_test(matrix: RGBMatrix, canvas):
 
     def panel_diag_jump_test(matrix:RGBMatrix, radius:int, canvas):
         """Animate a square jumping diagonally between the two panels."""
-        circle_size = pi * radius / 2
+        circle_size = math.pi * radius / 2
         speed = 8 # pixels per frame
         delay = 0.05  # seconds between frames
         
