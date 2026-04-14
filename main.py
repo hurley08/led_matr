@@ -138,7 +138,9 @@ def panel_diag_jump_test(matrix: RGBMatrix, radius: int, canvas):
                 dx = px - (x + radius)
                 dy = py - (y + radius)
                 if dx*dx + dy*dy <= radius*radius:
-                    canvas.SetPixel(px, py, 255, 255, 255)
+                    # Ensure pixel is within canvas bounds
+                    if 0 <= px < 128 and 0 <= py < PANEL_H:
+                        canvas.SetPixel(px, py, 255, 255, 255)
 
         canvas = matrix.SwapOnVSync(canvas)
         time.sleep(delay)
@@ -148,8 +150,15 @@ def panel_diag_jump_test(matrix: RGBMatrix, radius: int, canvas):
     # Bounce back diagonally
     while x > 0 and y > 0:
         canvas.Clear()
-        for px in range(x, x + radius * 2):
-            for py in range(y, y + radius * 2):
+        # Ensure we don't draw outside canvas bounds
+        start_x = max(0, x)
+        start_y = max(0, y)
+        end_x = min(128, x + radius * 2)
+        end_y = min(PANEL_H, y + radius * 2)
+
+        for px in range(start_x, end_x):
+            for py in range(start_y, end_y):
+                # Check if point is within circle bounds
                 dx = px - (x + radius)
                 dy = py - (y + radius)
                 if dx*dx + dy*dy <= radius*radius:
