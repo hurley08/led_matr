@@ -247,8 +247,8 @@ def render_two_moving_objects(matrix: RGBMatrix, canvas):
 
         canvas = matrix.SwapOnVSync(canvas)
         time.sleep(delay)
-        x1 += speed
-        x2 -= speed
+        x1 += speed_1
+        x2 -= speed_2
 
 
 def led_sequence_test(matrix: RGBMatrix, canvas):
