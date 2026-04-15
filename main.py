@@ -220,20 +220,23 @@ def startup_test(matrix: RGBMatrix):
     return canvas
 
 def render_two_moving_objects(matrix: RGBMatrix, canvas):
-    """Animate two objects moving independently on the panels."""
-    speed_1= 8 # pixels per frame
-    speed_2= 4 # pixels per frame  
+    """Animate two objects moving independently on the panels, bouncing off edges."""
+    speed_1 = 8  # pixels per frame
+    speed_2 = 4  # pixels per frame  
     delay = 0.05  # seconds between frames
+    frames_to_render = 500
 
     # Object 1 starts on left panel, moves right
     x1 = 0
     y1 = PANEL_H // 3
+    dx1 = speed_1  # direction for x1
 
     # Object 2 starts on right panel, moves left
-    x2 = PANEL_W * 2 - 10
+    x2 = matrix.width - 10
     y2 = PANEL_H * 2 // 3
+    dx2 = -speed_2  # direction for x2
 
-    while x1 < PANEL_W * 2 - 10 and x2 > PANEL_W:
+    while frames_to_render > 0:
         canvas.Clear()
         # Draw object 1 (white square)
         for px in range(x1, x1 + 10):
@@ -247,8 +250,26 @@ def render_two_moving_objects(matrix: RGBMatrix, canvas):
 
         canvas = matrix.SwapOnVSync(canvas)
         time.sleep(delay)
-        x1 += speed_1
-        x2 -= speed_2
+        
+        # Move object 1
+        x1 += dx1
+        if x1 < 0:
+            x1 = 0
+            dx1 = -dx1
+        elif x1 + 10 > matrix.width:
+            x1 = matrix.width - 10
+            dx1 = -dx1
+        
+        # Move object 2
+        x2 += dx2
+        if x2 < 0:
+            x2 = 0
+            dx2 = -dx2
+        elif x2 + 10 > matrix.width:
+            x2 = matrix.width - 10
+            dx2 = -dx2
+        
+        frames_to_render -= 1
 
 
 def led_sequence_test(matrix: RGBMatrix, canvas):
