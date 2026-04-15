@@ -170,6 +170,8 @@ def panel_diag_jump_test(matrix: RGBMatrix, radius: int, canvas):
         y -= speed
 
     return canvas
+
+def startup_test(matrix: RGBMatrix):
     canvas = matrix.CreateFrameCanvas()
 
     # Create array of [r, g, b] where each swings from 0-255 using sine waves
@@ -199,7 +201,7 @@ def panel_diag_jump_test(matrix: RGBMatrix, radius: int, canvas):
     panel_jump_test(matrix, canvas)
     return canvas
 
-def startup_test_old(matrix: RGBMatrix):
+def startup_test(matrix: RGBMatrix):
     canvas = matrix.CreateFrameCanvas()    # Flash through basic colours
     for colour in [(255,0,0), (0,255,0), (0,0,255), (255,255,255), (0,0,0)]:
         fill(canvas, *colour)
@@ -217,10 +219,42 @@ def startup_test_old(matrix: RGBMatrix):
     canvas = matrix.SwapOnVSync(canvas)
     return canvas
 
+def render_two_moving_objects(matrix: RGBMatrix, canvas):
+    """Animate two objects moving independently on the panels."""
+    speed_1= 8 # pixels per frame
+    speed_2= 4 # pixels per frame  
+    delay = 0.05  # seconds between frames
+
+    # Object 1 starts on left panel, moves right
+    x1 = 0
+    y1 = PANEL_H // 3
+
+    # Object 2 starts on right panel, moves left
+    x2 = PANEL_W * 2 - 10
+    y2 = PANEL_H * 2 // 3
+
+    while x1 < PANEL_W * 2 - 10 and x2 > PANEL_W:
+        canvas.Clear()
+        # Draw object 1 (white square)
+        for px in range(x1, x1 + 10):
+            for py in range(y1, y1 + 10):
+                canvas.SetPixel(px, py, 255, 255, 255)
+
+        # Draw object 2 (cyan square)
+        for px in range(x2, x2 + 10):
+            for py in range(y2, y2 + 10):
+                canvas.SetPixel(px, py, 0, 255, 255)
+
+        canvas = matrix.SwapOnVSync(canvas)
+        time.sleep(delay)
+        x1 += speed
+        x2 -= speed
+
 
 def led_sequence_test(matrix: RGBMatrix, canvas):
     """Turn on and off each LED in sequence."""
-    delay = 0.01  # seconds between each LED change
+    delay = 0.00001 # seconds between each LED change
+    canvas.Clear()
     
     # Turn on each LED in sequence
     for y in range(matrix.height):
@@ -250,6 +284,7 @@ def main():
 
     matrix = create_matrix()
     canvas = startup_test(matrix)
+    canvas = render_two_moving_objects(matrix, canvas)
     canvas = startup_test_old(matrix)
     canvas = panel_diag_jump_test(matrix, 10, canvas)
     canvas = led_sequence_test(matrix, canvas)
