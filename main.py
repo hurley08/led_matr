@@ -219,6 +219,29 @@ def startup_test_old(matrix: RGBMatrix):
     return canvas
 
 
+def led_sequence_test(matrix: RGBMatrix, canvas):
+    """Turn on and off each LED in sequence."""
+    delay = 0.01  # seconds between each LED change
+    
+    # Turn on each LED in sequence
+    for y in range(matrix.height):
+        for x in range(matrix.width):
+            canvas.SetPixel(x, y, 50, 255, 50)  
+            canvas = matrix.SwapOnVSync(canvas)
+            time.sleep(delay)
+    
+    time.sleep(0.5)  # Pause before turning off
+    
+    # Turn off each LED in sequence
+    for y in range(matrix.height):
+        for x in range(matrix.width):
+            canvas.SetPixel(x, y, 255, 50, 255)  # Black
+            canvas = matrix.SwapOnVSync(canvas)
+            time.sleep(delay)
+    
+    return canvas
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -230,6 +253,7 @@ def main():
     canvas = startup_test(matrix)
     canvas = startup_test_old(matrix)
     canvas = panel_diag_jump_test(matrix, 10, canvas)
+    canvas = led_sequence_test(matrix, canvas)
 
     
     graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "P1")
