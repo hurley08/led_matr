@@ -169,8 +169,7 @@ def panel_diag_jump_test(matrix: RGBMatrix, radius: int, canvas):
         x -= speed
         y -= speed
 
-
-def startup_test(matrix: RGBMatrix):
+    return canvas
     canvas = matrix.CreateFrameCanvas()
 
     # Create array of [r, g, b] where each swings from 0-255 using sine waves
