@@ -40,8 +40,10 @@ Using hzeller's rpi-rgb-led-matrix library
 """
 
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
+from lidar_controller import UsbLidarController
 import time
 import math
+import random
 
 # ---------------------------------------------------------------------------
 # Matrix configuration
@@ -78,6 +80,56 @@ def draw_border(canvas, x: int, y: int, w: int, h: int, r: int, g: int, b: int):
     for py in range(y, y + h):
         canvas.SetPixel(x,         py, r, g, b)
         canvas.SetPixel(x + w - 1, py, r, g, b)
+
+
+def draw_random_shape(canvas, x: int, y: int, w: int, h: int):
+    """Draw one random shape inside the given region."""
+    if w < 3 or h < 3:
+        return
+
+    r = random.randint(50, 255)
+    g = random.randint(50, 255)
+    b = random.randint(50, 255)
+    shape = random.choice(["rect", "circle", "line"])
+
+    if shape == "rect":
+        draw_border(canvas, x, y, w, h, r, g, b)
+        for px in range(x + 1, x + w - 1):
+            for py in range(y + 1, y + h - 1):
+                canvas.SetPixel(px, py, r, g, b)
+    elif shape == "circle":
+        radius = min(w, h) // 2 - 1
+        cx = x + w // 2
+        cy = y + h // 2
+        for px in range(x, x + w):
+            for py in range(y, y + h):
+                dx = px - cx
+                dy = py - cy
+                if dx * dx + dy * dy <= radius * radius:
+                    canvas.SetPixel(px, py, r, g, b)
+        draw_border(canvas, x, y, w, h, r, g, b)
+    else:
+        for i in range(min(w, h)):
+            if x + i < x + w and y + i < y + h:
+                canvas.SetPixel(x + i, y + i, r, g, b)
+            if x + i < x + w and y + h - 1 - i >= y:
+                canvas.SetPixel(x + i, y + h - 1 - i, r, g, b)
+
+
+def split_and_draw_random_shapes(canvas, x: int, y: int, w: int, h: int, min_size: int = 8):
+    """Split the viewing area into quadrants and draw random shapes recursively."""
+    if w < min_size or h < min_size:
+        return
+
+    draw_random_shape(canvas, x, y, w, h)
+
+    half_w = w // 2
+    half_h = h // 2
+
+    split_and_draw_random_shapes(canvas, x, y, half_w, half_h, min_size)
+    split_and_draw_random_shapes(canvas, x + half_w, y, w - half_w, half_h, min_size)
+    split_and_draw_random_shapes(canvas, x, y + half_h, half_w, h - half_h, min_size)
+    split_and_draw_random_shapes(canvas, x + half_w, y + half_h, w - half_w, h - half_h, min_size)
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +271,7 @@ def startup_test(matrix: RGBMatrix):
     canvas = matrix.SwapOnVSync(canvas)
     return canvas
 
-def render_two_moving_objects(matrix: RGBMatrix, canvas):
+def render_two_moving_objects(matrix: RGBMatrix, canvas, font):
     """Animate two objects moving independently on the panels, bouncing off edges."""
     speed_1 = 8  # pixels per frame
     speed_2 = 4  # pixels per frame  
@@ -247,7 +299,10 @@ def render_two_moving_objects(matrix: RGBMatrix, canvas):
         for px in range(x2, x2 + 10):
             for py in range(y2, y2 + 10):
                 canvas.SetPixel(px, py, 0, 255, 255)
-
+        print(f"Frames left: {frames_to_render}", end="\r")
+    
+        graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "Frames left")
+        graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), str(frames_to_render))
         canvas = matrix.SwapOnVSync(canvas)
         time.sleep(delay)
         
@@ -270,6 +325,7 @@ def render_two_moving_objects(matrix: RGBMatrix, canvas):
             dx2 = -dx2
         
         frames_to_render -= 1
+
 
 
 def led_sequence_test(matrix: RGBMatrix, canvas):
@@ -296,32 +352,85 @@ def led_sequence_test(matrix: RGBMatrix, canvas):
     return canvas
 
 
+def display_lidar_readings(matrix: RGBMatrix, canvas, font, lidar: UsbLidarController):
+    """Render live LiDAR readings on both panels until interrupted."""
+    while True:
+        measurement = lidar.get_latest_measurement()
+
+        canvas.Clear()
+        draw_border(canvas, 0, 0, PANEL_W, PANEL_H, 255, 0, 0)
+        draw_border(canvas, PANEL_W, 0, PANEL_W, PANEL_H, 0, 0, 255)
+
+        graphics.DrawText(canvas, font, 2, 10, graphics.Color(255, 255, 255), "LIDAR")
+        graphics.DrawText(canvas, font, PANEL_W + 2, 10, graphics.Color(255, 255, 255), "READING")
+
+        if measurement:
+            left_lines = [
+                f"A:{measurement.angle_deg:5.1f}",
+                f"D:{measurement.distance_mm:5.0f}",
+                f"Q:{measurement.quality if measurement.quality is not None else '--'}",
+            ]
+            right_lines = [
+                f"ANG {measurement.angle_deg:5.1f}",
+                f"DST {measurement.distance_mm:5.0f}",
+                f"TS {int(measurement.timestamp) % 10000:04d}",
+            ]
+
+            for i, text in enumerate(left_lines):
+                graphics.DrawText(canvas, font, 2, 22 + i * 10, graphics.Color(0, 255, 0), text)
+            for i, text in enumerate(right_lines):
+                graphics.DrawText(
+                    canvas,
+                    font,
+                    PANEL_W + 2,
+                    22 + i * 10,
+                    graphics.Color(255, 255, 0),
+                    text,
+                )
+        else:
+            graphics.DrawText(canvas, font, 2, 28, graphics.Color(255, 180, 0), "WAITING")
+            graphics.DrawText(canvas, font, 2, 38, graphics.Color(255, 180, 0), "FOR DATA")
+            graphics.DrawText(canvas, font, PANEL_W + 2, 28, graphics.Color(255, 180, 0), "CHECK")
+            graphics.DrawText(canvas, font, PANEL_W + 2, 38, graphics.Color(255, 180, 0), "USB/BAUD")
+
+        canvas = matrix.SwapOnVSync(canvas)
+        time.sleep(0.05)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
     font = graphics.Font()
     font.LoadFont("/home/pi4/projects/led_matr/rpi-rgb-led-matrix/fonts/5x8.bdf")
+    lidar = UsbLidarController(baudrate=230400)
 
     matrix = create_matrix()
     canvas = startup_test(matrix)
-    canvas = render_two_moving_objects(matrix, canvas)
-    canvas = startup_test_old(matrix)
+    canvas = render_two_moving_objects(matrix, canvas, font)
+    canvas = startup_test(matrix)
     canvas = panel_diag_jump_test(matrix, 10, canvas)
     canvas = led_sequence_test(matrix, canvas)
-
     
     graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "P1")
     graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), "P2")
     canvas = matrix.SwapOnVSync(canvas)
+
+    try:
+        lidar_port = lidar.connect()
+        lidar.start()
+        print(f"LiDAR connected on {lidar_port} @ {lidar.baudrate} baud")
+    except RuntimeError as exc:
+        print(f"LiDAR unavailable: {exc}")
+
     print(f"Matrix ready: {matrix.width}x{matrix.height} "
           f"({matrix.width // PANEL_W} panel(s) chained)")
 
     print("Startup complete. Press Ctrl+C to exit.")
     try:
-        while True:
-            time.sleep(1)
+        display_lidar_readings(matrix, canvas, font, lidar)
     except KeyboardInterrupt:
+        lidar.disconnect()
         matrix.Clear()
         print("Cleared.")
 

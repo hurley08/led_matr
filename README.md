@@ -9,6 +9,8 @@ A Python application for controlling two chained 64x64 HUB75 LED matrices on a R
 - **Panel Jump Test**: Animates a square moving horizontally across both panels
 - **Diagonal Circle Test**: Animates a circle moving diagonally across both panels
 - **Color Cycling**: Displays rainbow color transitions during startup
+- **USB LiDAR Controller**: Reusable class for reading LiDAR samples via `/dev/ttyUSB*` or `/dev/ttyACM*`
+- **Live LiDAR Overlay**: Shows angle, distance, quality, and timestamp data on both LED panels
 
 ## Hardware Requirements
 
@@ -23,6 +25,7 @@ A Python application for controlling two chained 64x64 HUB75 LED matrices on a R
 
 ```bash
 sudo apt-get update && sudo apt-get install -y python3-dev python3-pillow
+pip3 install pyserial
 ```
 
 ### 2. Clone and Build the LED Matrix Library
@@ -77,13 +80,46 @@ Run with sudo (required for GPIO access):
 sudo python3 main.py
 ```
 
+### LiDAR Class Usage
+
+The project includes `UsbLidarController` in `lidar_controller.py`.
+
+```python
+from lidar_controller import UsbLidarController
+import time
+
+lidar = UsbLidarController(baudrate=230400)
+lidar.start()
+
+try:
+	while True:
+		m = lidar.get_latest_measurement()
+		if m:
+			print(f"angle={m.angle_deg:.1f} distance={m.distance_mm:.1f}mm quality={m.quality}")
+		time.sleep(0.1)
+finally:
+	lidar.disconnect()
+```
+
+If your LiDAR uses a specific serial port, pass it explicitly:
+
+```python
+lidar = UsbLidarController(port="/dev/ttyUSB0", baudrate=230400)
+```
+
+Supported incoming LiDAR line formats:
+- `angle,distance`
+- `angle,distance,quality`
+- `angle:12.5 distance:840 q:180`
+
 The application will:
 1. Initialize the LED matrix
 2. Run startup diagnostic tests (color cycling, border drawing)
 3. Display panel labels ("P1" and "P2")
 4. Run the panel jump test animation
 5. Run the diagonal circle test animation
-6. Enter idle mode (press Ctrl+C to exit)
+6. Connect to LiDAR over USB serial (auto-detects `/dev/ttyUSB*` and `/dev/ttyACM*`)
+7. Continuously display live LiDAR readings on both panels until Ctrl+C
 
 ## Configuration
 
@@ -100,6 +136,8 @@ Matrix settings can be adjusted in the `create_matrix()` function:
 - **Flickering**: Increase `gpio_slowdown` value or check for electrical interference
 - **Permission errors**: Must run with `sudo` for GPIO access
 - **Audio conflicts**: Ensure onboard audio is disabled in `/boot/config.txt`
+- **No LiDAR data**: Verify port with `ls /dev/ttyUSB* /dev/ttyACM*`, confirm baudrate, and check USB power/cable
+- **LiDAR not found**: Pass `port="/dev/ttyUSB0"` (or the detected port) when creating `UsbLidarController`
 
 ## License
 
