@@ -446,7 +446,9 @@ def main():
     font = graphics.Font()
     font.LoadFont("/home/pi4/projects/led_matr/rpi-rgb-led-matrix/fonts/5x8.bdf")
     lidar = UsbLidarController(baudrate=115200)
-
+    matrix = create_matrix()
+    canvas = startup_test(matrix)
+    
     try:
         lidar_port = lidar.connect()
         lidar.start()
@@ -465,8 +467,7 @@ def main():
         matrix.Clear()
         print("Cleared.")
 
-    matrix = create_matrix()
-    canvas = startup_test(matrix)
+
     canvas = render_two_moving_objects(matrix, canvas, font)
     canvas = startup_test(matrix)
     canvas = panel_diag_jump_test(matrix, 10, canvas)
