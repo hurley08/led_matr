@@ -328,34 +328,52 @@ def render_two_moving_objects(matrix: RGBMatrix, canvas, font):
 
 
 
-def led_sequence_test(matrix: RGBMatrix, canvas, font):
-    """Turn on and off each LED in sequence."""
-    delay = 0.00001 # seconds between each LED change
-    canvas.Clear()
-    left_to_do = matrix.width * matrix.height
+def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
+    """Turn each LED on/off in sequence and show a per-cycle remaining counter."""
+    delay = 0.00001  # seconds between each LED change
+    total_pixels = matrix.width * matrix.height
+    cycle_count = max(1, cycles)
 
     graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "px left")
-    graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), str(left_to_do))
-       
 
-    # Turn on each LED in sequence
-    for y in range(matrix.height):
-        for x in range(matrix.width):
-            canvas.SetPixel(x, y, 50, 255, 50)
-            graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), str(left_to_do))
-            canvas = matrix.SwapOnVSync(canvas)
-            left_to_do -= 1
-            time.sleep(delay)
-    
-    time.sleep(0.5)  # Pause before turning off
-    
-    # Turn off each LED in sequence
-    for y in range(matrix.height):
-        for x in range(matrix.width):
-            canvas.SetPixel(x, y, 255, 50, 255)  # Black
-            canvas = matrix.SwapOnVSync(canvas)
-            time.sleep(delay)
-    
+    for _ in range(cycle_count):
+        left_to_do = total_pixels
+        for y in range(matrix.height):
+            for x in range(matrix.width):
+                canvas.SetPixel(x, y, 50, 255, 50)
+                # Fixed-width counter avoids artifacts without clearing the whole panel.
+                graphics.DrawText(
+                    canvas,
+                    font,
+                    PANEL_W + 10,
+                    36,
+                    graphics.Color(255, 255, 0),
+                    f"{left_to_do:05d}",
+                )
+                canvas = matrix.SwapOnVSync(canvas)
+                left_to_do -= 1
+                time.sleep(delay)
+
+        time.sleep(0.5)
+
+        left_to_do = total_pixels
+        for y in range(matrix.height):
+            for x in range(matrix.width):
+                canvas.SetPixel(x, y, 0, 0, 0)
+                graphics.DrawText(
+                    canvas,
+                    font,
+                    PANEL_W + 10,
+                    36,
+                    graphics.Color(255, 255, 0),
+                    f"{left_to_do:05d}",
+                )
+                canvas = matrix.SwapOnVSync(canvas)
+                left_to_do -= 1
+                time.sleep(delay)
+
+        time.sleep(0.5)
+
     return canvas
 
 
