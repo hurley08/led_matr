@@ -77,6 +77,7 @@ class UsbLidarController:
         self._lock = Lock()
         self._buffer: List[LidarMeasurement] = []
         self._on_measurement: Optional[Callable[[LidarMeasurement], None]] = None
+        self._last_error: Optional[str] = None
 
     @staticmethod
     def detect_port() -> Optional[str]:
@@ -153,6 +154,8 @@ class UsbLidarController:
         if self._running:
             return
 
+        self._last_error = None
+
         if self._rplidar is None and self.use_rplidar_startup:
             self._attempt_rplidar_startup()
 
@@ -168,6 +171,25 @@ class UsbLidarController:
     def driver_mode(self) -> str:
         """Current backend mode: rplidar or serial-text."""
         return "rplidar" if self._rplidar is not None else "serial-text"
+
+    @property
+    def last_error(self) -> Optional[str]:
+        """Last backend read error, if any."""
+        return self._last_error
+
+    def wait_for_first_measurement(self, timeout_seconds: float = 5.0) -> bool:
+        """Wait for first parsed sample up to timeout.
+
+        Returns True if at least one sample is available.
+        """
+        deadline = time.time() + max(0.0, timeout_seconds)
+        while time.time() < deadline:
+            if self.get_latest_measurement() is not None:
+                return True
+            if not self.is_running and self.last_error:
+                return False
+            time.sleep(0.05)
+        return self.get_latest_measurement() is not None
 
     def _attempt_rplidar_startup(self):
         """Best-effort startup for common USB RPLidar devices.
@@ -211,9 +233,8 @@ class UsbLidarController:
                     self._append_measurement(measurement)
                     if self._on_measurement:
                         self._on_measurement(measurement)
-        except Exception:
-            # Keep main app running; it will show WAITING when no data is available.
-            pass
+        except Exception as exc:
+            self._last_error = f"rplidar read failed: {exc}"
 
         self._running = False
 
@@ -256,7 +277,8 @@ class UsbLidarController:
                 break
             try:
                 raw = self._serial.readline()
-            except SerialException:
+            except SerialException as exc:
+                self._last_error = f"serial read failed: {exc}"
                 break
 
             if not raw:
