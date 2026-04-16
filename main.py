@@ -445,18 +445,7 @@ def display_lidar_readings(matrix: RGBMatrix, canvas, font, lidar: UsbLidarContr
 def main():
     font = graphics.Font()
     font.LoadFont("/home/pi4/projects/led_matr/rpi-rgb-led-matrix/fonts/5x8.bdf")
-    lidar = UsbLidarController(baudrate=230400)
-
-    matrix = create_matrix()
-    canvas = startup_test(matrix)
-    canvas = render_two_moving_objects(matrix, canvas, font)
-    canvas = startup_test(matrix)
-    canvas = panel_diag_jump_test(matrix, 10, canvas)
-    canvas = led_sequence_test(matrix, canvas, font)
-    
-    graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "P1")
-    graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), "P2")
-    canvas = matrix.SwapOnVSync(canvas)
+    lidar = UsbLidarController(baudrate=115200)
 
     try:
         lidar_port = lidar.connect()
@@ -475,6 +464,17 @@ def main():
         lidar.disconnect()
         matrix.Clear()
         print("Cleared.")
+
+    matrix = create_matrix()
+    canvas = startup_test(matrix)
+    canvas = render_two_moving_objects(matrix, canvas, font)
+    canvas = startup_test(matrix)
+    canvas = panel_diag_jump_test(matrix, 10, canvas)
+    canvas = led_sequence_test(matrix, canvas, font)
+    
+    graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "P1")
+    graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), "P2")
+    canvas = matrix.SwapOnVSync(canvas)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,9 @@ from dataclasses import dataclass
 from threading import Lock, Thread
 from typing import Callable, List, Optional
 import glob
+import grp
+import os
+import pwd
 import re
 import time
 
@@ -88,6 +91,14 @@ class UsbLidarController:
         try:
             self._serial = serial.Serial(active_port, self.baudrate, timeout=self.timeout)
         except SerialException as exc:
+            exc_text = str(exc)
+            if "Permission denied" in exc_text:
+                raise RuntimeError(
+                    "Failed to open LiDAR port "
+                    f"{active_port} at {self.baudrate} baud: {exc}. "
+                    f"Runtime info: euid={os.geteuid()} python={os.path.realpath(os.sys.executable)} "
+                    f"port={self._format_device_permissions(active_port)}"
+                ) from exc
             raise RuntimeError(
                 f"Failed to open LiDAR port {active_port} at {self.baudrate} baud: {exc}"
             ) from exc
@@ -203,3 +214,15 @@ class UsbLidarController:
         distance = float(dist_match.group(1))
         quality = int(qual_match.group(1)) if qual_match else None
         return LidarMeasurement(time.time(), angle, distance, quality)
+
+    @staticmethod
+    def _format_device_permissions(device_path: str) -> str:
+        """Return concise owner/group/mode info for a serial device path."""
+        try:
+            st = os.stat(device_path)
+            owner = pwd.getpwuid(st.st_uid).pw_name
+            group = grp.getgrgid(st.st_gid).gr_name
+            mode = oct(st.st_mode & 0o777)
+            return f"{device_path} owner={owner} group={group} mode={mode}"
+        except OSError as err:
+            return f"{device_path} stat-error={err}"
