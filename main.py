@@ -333,6 +333,17 @@ def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
     delay = 0.00001  # seconds between each LED change
     total_pixels = matrix.width * matrix.height
     cycle_count = max(1, cycles)
+    counter_x = PANEL_W + 10
+    counter_y = 36
+    # 5 glyphs @ 5px width + spacing, with vertical room for 5x8 font.
+    counter_w = 32
+    counter_h = 10
+
+    def clear_counter_box():
+        for py in range(counter_y - 8, counter_y - 8 + counter_h):
+            for px in range(counter_x, counter_x + counter_w):
+                if 0 <= px < matrix.width and 0 <= py < matrix.height:
+                    canvas.SetPixel(px, py, 0, 0, 0)
 
     graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "px left")
 
@@ -342,11 +353,12 @@ def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
             for x in range(matrix.width):
                 canvas.SetPixel(x, y, 50, 255, 50)
                 # Fixed-width counter avoids artifacts without clearing the whole panel.
+                clear_counter_box()
                 graphics.DrawText(
                     canvas,
                     font,
-                    PANEL_W + 10,
-                    36,
+                    counter_x,
+                    counter_y,
                     graphics.Color(255, 255, 0),
                     f"{left_to_do:05d}",
                 )
@@ -360,11 +372,12 @@ def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
         for y in range(matrix.height):
             for x in range(matrix.width):
                 canvas.SetPixel(x, y, 0, 0, 0)
+                clear_counter_box()
                 graphics.DrawText(
                     canvas,
                     font,
-                    PANEL_W + 10,
-                    36,
+                    counter_x,
+                    counter_y,
                     graphics.Color(255, 255, 0),
                     f"{left_to_do:05d}",
                 )
@@ -373,6 +386,10 @@ def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
                 time.sleep(delay)
 
         time.sleep(0.5)
+
+    # Ensure no counter glyphs remain after the final OFF cycle.
+    clear_counter_box()
+    canvas = matrix.SwapOnVSync(canvas)
 
     return canvas
 
