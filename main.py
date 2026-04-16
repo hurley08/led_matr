@@ -396,8 +396,22 @@ def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
 
 def display_lidar_readings(matrix: RGBMatrix, canvas, font, lidar: UsbLidarController):
     """Render live LiDAR readings on both panels until interrupted."""
+    no_data_seconds = 0.0
+    warned_no_data = False
     while True:
         measurement = lidar.get_latest_measurement()
+
+        if measurement:
+            no_data_seconds = 0.0
+            warned_no_data = False
+        else:
+            no_data_seconds += 0.05
+            if no_data_seconds >= 5.0 and not warned_no_data:
+                print(
+                    "LiDAR connected but no parsed samples after 5s. "
+                    "If this is an RPLidar, enable startup commands and verify model protocol."
+                )
+                warned_no_data = True
 
         canvas.Clear()
         draw_border(canvas, 0, 0, PANEL_W, PANEL_H, 255, 0, 0)
@@ -445,7 +459,8 @@ def display_lidar_readings(matrix: RGBMatrix, canvas, font, lidar: UsbLidarContr
 def main():
     font = graphics.Font()
     font.LoadFont("/home/pi4/projects/led_matr/rpi-rgb-led-matrix/fonts/5x8.bdf")
-    lidar = UsbLidarController(baudrate=115200)
+    # CP210x/RPLidar style sensors typically need startup control frames.
+    lidar = UsbLidarController(baudrate=115200, use_rplidar_startup=True, use_rplidar_driver=True)
     matrix = create_matrix()
     canvas = startup_test(matrix)
 
@@ -459,7 +474,10 @@ def main():
     try:
         lidar_port = lidar.connect()
         lidar.start()
-        print(f"LiDAR connected on {lidar_port} @ {lidar.baudrate} baud")
+        print(
+            f"LiDAR connected on {lidar_port} @ {lidar.baudrate} baud "
+            f"(mode={lidar.driver_mode})"
+        )
     except RuntimeError as exc:
         print(f"LiDAR unavailable: {exc}")
         

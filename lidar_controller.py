@@ -31,6 +31,11 @@ except ImportError:  # pragma: no cover - runtime dependency
     class SerialException(Exception):
         """Fallback exception used when pyserial is missing."""
 
+try:
+    from rplidar import RPLidar  # type: ignore
+except ImportError:  # pragma: no cover - runtime dependency
+    RPLidar = None
+
 
 @dataclass(frozen=True)
 class LidarMeasurement:
@@ -52,16 +57,21 @@ class UsbLidarController:
     def __init__(
         self,
         port: Optional[str] = None,
-        baudrate: int = 230400,
+        baudrate: int = 115200,
         timeout: float = 0.2,
         max_buffer_size: int = 2048,
+        use_rplidar_startup: bool = False,
+        use_rplidar_driver: bool = True,
     ):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
         self.max_buffer_size = max(64, max_buffer_size)
+        self.use_rplidar_startup = use_rplidar_startup
+        self.use_rplidar_driver = use_rplidar_driver
 
         self._serial = None
+        self._rplidar = None
         self._thread: Optional[Thread] = None
         self._running = False
         self._lock = Lock()
@@ -76,6 +86,21 @@ class UsbLidarController:
 
     def connect(self) -> str:
         """Open the serial connection and return the active port."""
+        active_port = self.port or self.detect_port()
+        if not active_port:
+            raise RuntimeError("No LiDAR USB serial device found (/dev/ttyUSB* or /dev/ttyACM*).")
+
+        if self.use_rplidar_driver and RPLidar is not None:
+            if self._rplidar is not None:
+                return active_port
+            try:
+                self._rplidar = RPLidar(active_port, baudrate=self.baudrate, timeout=self.timeout)
+                self.port = active_port
+                return active_port
+            except Exception:
+                # Fall back to text-mode serial parsing.
+                self._rplidar = None
+
         if serial is None:
             raise RuntimeError(
                 "pyserial is not installed. Install with: pip3 install pyserial"
@@ -83,10 +108,6 @@ class UsbLidarController:
 
         if self._serial and self._serial.is_open:
             return self._serial.port
-
-        active_port = self.port or self.detect_port()
-        if not active_port:
-            raise RuntimeError("No LiDAR USB serial device found (/dev/ttyUSB* or /dev/ttyACM*).")
 
         try:
             self._serial = serial.Serial(active_port, self.baudrate, timeout=self.timeout)
@@ -109,6 +130,20 @@ class UsbLidarController:
     def disconnect(self):
         """Stop reading and close the serial connection."""
         self.stop()
+        if self._rplidar is not None:
+            try:
+                self._rplidar.stop_motor()
+            except Exception:
+                pass
+            try:
+                self._rplidar.stop()
+            except Exception:
+                pass
+            try:
+                self._rplidar.disconnect()
+            except Exception:
+                pass
+            self._rplidar = None
         if self._serial and self._serial.is_open:
             self._serial.close()
 
@@ -118,10 +153,69 @@ class UsbLidarController:
         if self._running:
             return
 
+        if self._rplidar is None and self.use_rplidar_startup:
+            self._attempt_rplidar_startup()
+
         self._on_measurement = on_measurement
         self._running = True
-        self._thread = Thread(target=self._read_loop, name="usb-lidar-reader", daemon=True)
+        if self._rplidar is not None:
+            self._thread = Thread(target=self._read_rplidar_loop, name="rplidar-reader", daemon=True)
+        else:
+            self._thread = Thread(target=self._read_loop, name="usb-lidar-reader", daemon=True)
         self._thread.start()
+
+    @property
+    def driver_mode(self) -> str:
+        """Current backend mode: rplidar or serial-text."""
+        return "rplidar" if self._rplidar is not None else "serial-text"
+
+    def _attempt_rplidar_startup(self):
+        """Best-effort startup for common USB RPLidar devices.
+
+        Many CP210x-based RPLidars require DTR low to start motor and a
+        scan command frame before samples are emitted.
+        """
+        if not self._serial or not self._serial.is_open:
+            return
+
+        try:
+            # Common RPLidar USB adapters use DTR low to enable motor.
+            self._serial.setDTR(False)
+        except (AttributeError, OSError, SerialException):
+            pass
+
+        try:
+            # RPLidar start scan command.
+            self._serial.write(b"\xA5\x20")
+            self._serial.flush()
+        except (OSError, SerialException):
+            pass
+
+    def _read_rplidar_loop(self):
+        if self._rplidar is None:
+            self._running = False
+            return
+
+        try:
+            self._rplidar.start_motor()
+        except Exception:
+            pass
+
+        try:
+            for scan in self._rplidar.iter_scans(max_buf_meas=1500):
+                if not self._running:
+                    break
+                now = time.time()
+                for quality, angle, distance in scan:
+                    measurement = LidarMeasurement(now, float(angle), float(distance), int(quality))
+                    self._append_measurement(measurement)
+                    if self._on_measurement:
+                        self._on_measurement(measurement)
+        except Exception:
+            # Keep main app running; it will show WAITING when no data is available.
+            pass
+
+        self._running = False
 
     def stop(self):
         """Stop background reading thread."""
