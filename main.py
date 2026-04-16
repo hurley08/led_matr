@@ -448,18 +448,21 @@ def main():
     lidar = UsbLidarController(baudrate=115200)
     matrix = create_matrix()
     canvas = startup_test(matrix)
-    
+
+
+
+    print(f"Matrix ready: {matrix.width}x{matrix.height} "
+          f"({matrix.width // PANEL_W} panel(s) chained)")
+
+    print("Startup complete. Press Ctrl+C to exit.")
+
     try:
         lidar_port = lidar.connect()
         lidar.start()
         print(f"LiDAR connected on {lidar_port} @ {lidar.baudrate} baud")
     except RuntimeError as exc:
         print(f"LiDAR unavailable: {exc}")
-
-    print(f"Matrix ready: {matrix.width}x{matrix.height} "
-          f"({matrix.width // PANEL_W} panel(s) chained)")
-
-    print("Startup complete. Press Ctrl+C to exit.")
+        
     try:
         display_lidar_readings(matrix, canvas, font, lidar)
     except KeyboardInterrupt:
