@@ -328,7 +328,7 @@ def render_two_moving_objects(matrix: RGBMatrix, canvas, font):
 
 
 
-def led_sequence_test(matrix: RGBMatrix, canvas):
+def led_sequence_test(matrix: RGBMatrix, canvas, font):
     """Turn on and off each LED in sequence."""
     delay = 0.00001 # seconds between each LED change
     canvas.Clear()
@@ -417,7 +417,7 @@ def main():
     canvas = render_two_moving_objects(matrix, canvas, font)
     canvas = startup_test(matrix)
     canvas = panel_diag_jump_test(matrix, 10, canvas)
-    canvas = led_sequence_test(matrix, canvas)
+    canvas = led_sequence_test(matrix, canvas, font)
     
     graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "P1")
     graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), "P2")
