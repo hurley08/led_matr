@@ -332,12 +332,19 @@ def led_sequence_test(matrix: RGBMatrix, canvas):
     """Turn on and off each LED in sequence."""
     delay = 0.00001 # seconds between each LED change
     canvas.Clear()
-    
+    left_to_do = matrix.width * matrix.height
+
+    graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "px left")
+    graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), str(left_to_do))
+       
+
     # Turn on each LED in sequence
     for y in range(matrix.height):
         for x in range(matrix.width):
-            canvas.SetPixel(x, y, 50, 255, 50)  
+            canvas.SetPixel(x, y, 50, 255, 50)
+            graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), str(left_to_do))
             canvas = matrix.SwapOnVSync(canvas)
+            left_to_do -= 1
             time.sleep(delay)
     
     time.sleep(0.5)  # Pause before turning off
