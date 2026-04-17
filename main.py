@@ -375,7 +375,7 @@ def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
     for _ in range(cycle_count):
         left_to_do = total_pixels
         for y in range(matrix.height):
-            for x in range(matrix.width):
+            for x in range(matrix.width+15):
                 canvas.SetPixel(x, y, 50, 255, 50)
                 # Fixed-width counter avoids artifacts without clearing the whole panel.
                 clear_counter_box()
@@ -388,10 +388,16 @@ def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
                     f"{left_to_do:05d}",
                 )
                 canvas = matrix.SwapOnVSync(canvas)
-                try:
-                    canvas.SetPixel(x-5, y, 125, 0, 125)
-                except:
-                    pass  # Ignore out-of-bounds for the first few pixels
+                if x < matrix.width:
+                    try:
+                        canvas.SetPixel(x-5, y, 125, 0, 125)
+                    except:
+                        pass  # Ignore out-of-bounds for the first few pixels
+                else:
+                    try:
+                        canvas.SetPixel(matrix.width - 15 - x, y-1, 0, 0, 0)
+                    except:
+                        pass  # Ignore out-of-bounds for the first few pixels
                 left_to_do -= 1
                 time.sleep(delay)
 
