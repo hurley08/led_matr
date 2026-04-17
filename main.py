@@ -395,7 +395,7 @@ def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
                         pass  # Ignore out-of-bounds for the first few pixels
                 else:
                     try:
-                        canvas.SetPixel(matrix.width - 15 - x, y-1, 0, 0, 0)
+                        canvas.SetPixel(matrix.width - 15 + x, y-1, 0, 0, 0)
                     except:
                         pass  # Ignore out-of-bounds for the first few pixels
                 left_to_do -= 1
