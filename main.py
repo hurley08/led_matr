@@ -58,7 +58,7 @@ def create_matrix() -> RGBMatrix:
     options.parallel        = 1           # single chain
     options.hardware_mapping = "regular"  # no HAT — direct GPIO wiring
     options.gpio_slowdown   = 4           # RPi4 is fast; slowdown prevents glitches
-    options.brightness      = 40          # 0–100; lower = less heat & power draw
+    options.brightness      = 85          # 0–100; lower = less heat & power draw
     options.disable_hardware_pulsing = True
     return RGBMatrix(options=options)
 
