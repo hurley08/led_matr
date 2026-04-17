@@ -82,6 +82,33 @@ def draw_border(canvas, x: int, y: int, w: int, h: int, r: int, g: int, b: int):
         canvas.SetPixel(x + w - 1, py, r, g, b)
 
 
+def draw_all_panel_borders(canvas, matrix: RGBMatrix, panel_w: int, panel_h: int):
+    """Draw a border around each panel-sized tile across the full matrix."""
+    colours = [
+        (255, 0, 0),
+        (0, 0, 255),
+        (0, 200, 0),
+        (255, 180, 0),
+        (255, 0, 255),
+        (0, 255, 255),
+    ]
+    tiles_x = max(1, (matrix.width + panel_w - 1) // panel_w)
+    tiles_y = max(1, (matrix.height + panel_h - 1) // panel_h)
+
+    index = 0
+    for ty in range(tiles_y):
+        for tx in range(tiles_x):
+            x = tx * panel_w
+            y = ty * panel_h
+            w = min(panel_w, matrix.width - x)
+            h = min(panel_h, matrix.height - y)
+            if w <= 0 or h <= 0:
+                continue
+            r, g, b = colours[index % len(colours)]
+            draw_border(canvas, x, y, w, h, r, g, b)
+            index += 1
+
+
 def draw_random_shape(canvas, x: int, y: int, w: int, h: int):
     """Draw one random shape inside the given region."""
     if w < 3 or h < 3:
@@ -241,10 +268,9 @@ def startup_test(matrix: RGBMatrix):
         canvas = matrix.SwapOnVSync(canvas)
         time.sleep(0.01)  # Adjust speed as needed
 
-    # Draw red border on left panel, blue border on right panel
+    # Draw borders for all panel tiles.
     canvas.Clear()
-    draw_border(canvas, 0,       0, PANEL_W, PANEL_H, 255, 0,   0)
-    draw_border(canvas, PANEL_W, 0, PANEL_W, PANEL_H, 0,   0, 255)
+    draw_all_panel_borders(canvas, matrix, PANEL_W, PANEL_H)
     canvas = matrix.SwapOnVSync(canvas)
     time.sleep(1.5)
 
@@ -260,10 +286,9 @@ def startup_test(matrix: RGBMatrix):
         canvas = matrix.SwapOnVSync(canvas)
         time.sleep(1.5)
 
-    # Draw red border on left panel, blue border on right panel
+    # Draw borders for all panel tiles.
     canvas.Clear()
-    draw_border(canvas, 0,       0, PANEL_W, PANEL_H, 255, 0,   0)
-    draw_border(canvas, PANEL_W, 0, PANEL_W, PANEL_H, 0,   0, 255)
+    draw_all_panel_borders(canvas, matrix, PANEL_W, PANEL_H)
     canvas = matrix.SwapOnVSync(canvas)
     time.sleep(1.5)
 
@@ -414,8 +439,7 @@ def display_lidar_readings(matrix: RGBMatrix, canvas, font, lidar: UsbLidarContr
                 warned_no_data = True
 
         canvas.Clear()
-        draw_border(canvas, 0, 0, PANEL_W, PANEL_H, 255, 0, 0)
-        draw_border(canvas, PANEL_W, 0, PANEL_W, PANEL_H, 0, 0, 255)
+        draw_all_panel_borders(canvas, matrix, PANEL_W, PANEL_H)
 
         graphics.DrawText(canvas, font, 2, 10, graphics.Color(255, 255, 255), "LIDAR")
         graphics.DrawText(canvas, font, PANEL_W + 2, 10, graphics.Color(255, 255, 255), "READING")
