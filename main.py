@@ -58,7 +58,7 @@ def create_matrix() -> RGBMatrix:
     options.parallel        = 1           # single chain
     options.hardware_mapping = "regular"  # no HAT — direct GPIO wiring
     options.gpio_slowdown   = 4           # RPi4 is fast; slowdown prevents glitches
-    options.brightness      = 85          # 0–100; lower = less heat & power draw
+    options.brightness      = 40          # 0–100; lower = less heat & power draw
     options.disable_hardware_pulsing = True
     return RGBMatrix(options=options)
 
@@ -388,27 +388,13 @@ def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
                     f"{left_to_do:05d}",
                 )
                 canvas = matrix.SwapOnVSync(canvas)
+                try:
+                    canvas.SetPixel(x-5, y, 125, 0, 125)
+                except:
+                    pass  # Ignore out-of-bounds for the first few pixels
                 left_to_do -= 1
                 time.sleep(delay)
 
-        time.sleep(0.5)
-
-        left_to_do = total_pixels
-        for y in range(matrix.height):
-            for x in range(matrix.width):
-                canvas.SetPixel(x, y, 0, 0, 0)
-                clear_counter_box()
-                graphics.DrawText(
-                    canvas,
-                    font,
-                    counter_x,
-                    counter_y,
-                    graphics.Color(255, 255, 0),
-                    f"{left_to_do:05d}",
-                )
-                canvas = matrix.SwapOnVSync(canvas)
-                left_to_do -= 1
-                time.sleep(delay)
 
         time.sleep(0.5)
 
