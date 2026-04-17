@@ -54,11 +54,11 @@ def create_matrix() -> RGBMatrix:
 
     options.rows            = 64          # height of one panel
     options.cols            = 64          # width of one panel
-    options.chain_length    = 2           # two panels daisy-chained
+    options.chain_length    = 3           # two panels daisy-chained
     options.parallel        = 1           # single chain
     options.hardware_mapping = "regular"  # no HAT — direct GPIO wiring
     options.gpio_slowdown   = 4           # RPi4 is fast; slowdown prevents glitches
-    options.brightness      = 80          # 0–100; lower = less heat & power draw
+    options.brightness      = 40          # 0–100; lower = less heat & power draw
     options.disable_hardware_pulsing = True
     return RGBMatrix(options=options)
 
