@@ -410,6 +410,44 @@ def led_sequence_test(matrix: RGBMatrix, canvas, font, cycles: int = 1):
 
     return canvas
 
+def show_quadrants(matrix: RGBMatrix, canvas):
+    """Fill each quadrant of the full matrix with a different colour."""
+    half_w = matrix.width // 2
+    half_h = matrix.height // 2
+
+    # Top-left: Red
+    for x in range(half_w):
+        for y in range(half_h):
+            canvas.SetPixel(x, y, 255, 0, 0)
+
+    # Top-right: Green
+    for x in range(half_w, matrix.width):
+        for y in range(half_h):
+            canvas.SetPixel(x, y, 0, 255, 0)
+
+    # Bottom-left: Blue
+    for x in range(half_w):
+        for y in range(half_h, matrix.height):
+            canvas.SetPixel(x, y, 0, 0, 255)
+
+    # Bottom-right: Yellow
+    for x in range(half_w, matrix.width):
+        for y in range(half_h, matrix.height):
+            canvas.SetPixel(x, y, 255, 255, 0)
+
+    return canvas
+
+def show_quad_coordinates(matrix: RGBMatrix, canvas, font):
+    quadrants = [
+    (0, 0),   (32, 0),   (64, 0),   (96, 0),   (128, 0),   (160, 0),
+    (0, 32),  (32, 32),  (64, 32),  (96, 32),  (128, 32),  (160, 32)]
+
+    for i, (x, y) in enumerate(quadrants):
+        graphics.DrawText(canvas, font, x + 2, y + 10, graphics.Color(255, 255, 255), f"Q{i+1}") 
+        canvas = matrix.SwapOnVSync(canvas)
+    
+    return canvas   
+
 
 def display_lidar_readings(matrix: RGBMatrix, canvas, font, lidar: UsbLidarController):
     """Render live LiDAR readings on both panels until interrupted."""
@@ -486,6 +524,11 @@ def main():
           f"({matrix.width // PANEL_W} panel(s) chained)")
 
     print("Startup complete. Press Ctrl+C to exit.")
+    
+    canvas = show_quadrants(matrix, canvas)
+    matrix.clear()
+    canvas = matrix.SwapOnVSync(canvas)
+    canvas = show_quad_coordinates(matrix, canvas, font)
 
     try:
         lidar_port = lidar.connect()
