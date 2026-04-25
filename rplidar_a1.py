@@ -1,4 +1,3 @@
-
 """rplidar_a1.py - Minimal SLAMTEC RPLIDAR A1 driver over raw pyserial.
 
 Written because the `rplidar` package on PyPI is unmaintained and the
@@ -253,7 +252,7 @@ class RPLidarA1:
                         if max_scans is not None and yielded >= max_scans:
                             return
                     scan = []
-                if quality > 0 and distance > 0:
+                if quality > 0:
                     scan.append((quality, angle, distance))
         finally:
             self.stop()
