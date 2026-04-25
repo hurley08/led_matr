@@ -42,6 +42,9 @@ Using hzeller's rpi-rgb-led-matrix library
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 import time
 import math
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # ---------------------------------------------------------------------------
 # Matrix configuration
