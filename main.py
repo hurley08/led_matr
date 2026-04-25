@@ -297,33 +297,70 @@ def led_sequence_test(matrix: RGBMatrix, canvas):
 
 
 # ---------------------------------------------------------------------------
+# RPLidar radar renderer
+# ---------------------------------------------------------------------------
+
+def lidar_radar(matrix: RGBMatrix, port: str = '/dev/ttyUSB0', max_distance: int = 3000):
+    """
+    Render RPLidar A1 readings as a live top-down radar on the LED matrix.
+
+    Coordinate convention:
+        angle=0° → top of display (forward), increasing clockwise.
+        Orient the sensor so its 0° faces the same direction as the top of the panels.
+    """
+    from rplidar_a1 import RPLidarA1
+
+    CANVAS_W = matrix.width   # 128
+    CANVAS_H = matrix.height  # 64
+    CX = CANVAS_W // 2        # 64 — horizontal center
+    CY = CANVAS_H // 2        # 32 — vertical center
+    MAX_R = CY - 2            # 30 px — radius fits panel height
+
+    canvas = matrix.CreateFrameCanvas()
+
+    print(f"Lidar radar running on {port}. Press Ctrl+C to stop.")
+    try:
+        with RPLidarA1(port) as lidar:
+            for scan in lidar.iter_scans():
+                canvas.Clear()
+
+                # Yellow dot at sensor origin
+                canvas.SetPixel(CX, CY, 255, 255, 0)
+
+                for (quality, angle, distance) in scan:
+                    d = min(distance, max_distance)
+                    ratio = d / max_distance
+                    r_px = int(ratio * MAX_R)
+
+                    rad = math.radians(angle)
+                    px = int(CX + r_px * math.sin(rad))
+                    py = int(CY - r_px * math.cos(rad))
+
+                    if 0 <= px < CANVAS_W and 0 <= py < CANVAS_H:
+                        # Green (close) → red (far)
+                        canvas.SetPixel(px, py, int(255 * ratio), int(255 * (1 - ratio)), 0)
+
+                canvas = matrix.SwapOnVSync(canvas)
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        canvas.Clear()
+        matrix.SwapOnVSync(canvas)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
-    font = graphics.Font()
-    font.LoadFont("/home/pi4/projects/led_matr/rpi-rgb-led-matrix/fonts/5x8.bdf")
+    import sys
+    port = sys.argv[1] if len(sys.argv) > 1 else '/dev/ttyUSB0'
 
     matrix = create_matrix()
-    canvas = startup_test(matrix)
-    canvas = render_two_moving_objects(matrix, canvas)
-    canvas = startup_test_old(matrix)
-    canvas = panel_diag_jump_test(matrix, 10, canvas)
-    canvas = led_sequence_test(matrix, canvas)
-
-    
-    graphics.DrawText(canvas, font, 10, 36, graphics.Color(0, 255, 0), "P1")
-    graphics.DrawText(canvas, font, PANEL_W + 10, 36, graphics.Color(255, 255, 0), "P2")
-    canvas = matrix.SwapOnVSync(canvas)
-    print(f"Matrix ready: {matrix.width}x{matrix.height} "
-          f"({matrix.width // PANEL_W} panel(s) chained)")
-
-    print("Startup complete. Press Ctrl+C to exit.")
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        matrix.Clear()
-        print("Cleared.")
+    startup_test(matrix)
+    lidar_radar(matrix, port=port)
+    matrix.Clear()
+    print("Done.")
 
 
 if __name__ == "__main__":
