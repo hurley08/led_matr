@@ -7,7 +7,7 @@ here; visualizations can subscribe to any of them by name.
 Available streams
 ─────────────────
   lidar.scan      Raw point cloud — List[Point]
-  lidar.sectors   Sector analysis — dict with front/left/right/min/avg/density/health
+  lidar.sectors   Sector analysis — SectorStats dataclass with front/left/right/min_dist/avg_dist/density/health
 
 Run  `python3 streams.py`  to print a live summary (mock data, no hardware needed).
 """
