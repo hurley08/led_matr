@@ -55,9 +55,11 @@ def main():
             i += 1
         i += 1
     list_ = "--list" in args
+    effective_mock = mock or list_
 
-    # Build streams
-    scan_stream, sector_stream = build_streams(mock=mock, port=port)
+    # Build streams. In list mode, force mock streams so listing does not
+    # instantiate hardware-backed sources with side effects.
+    scan_stream, sector_stream = build_streams(mock=effective_mock, port=port)
 
     # Build runtime and register everything
     rt = (
