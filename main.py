@@ -44,7 +44,9 @@ import os
 import time
 import math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, '/home/pi4/Projects/led_matr')
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
+from rplidar_a1 import RPLidarA1
 
 # ---------------------------------------------------------------------------
 # Matrix configuration
@@ -302,9 +304,6 @@ def lidar_radar(matrix: RGBMatrix, port: str = '/dev/ttyUSB0', max_distance: int
         angle=0° → top of display (forward), increasing clockwise.
         Orient the sensor so its 0° faces the same direction as the top of the panels.
     """
-    # Import locally so this still works when running as sudo/root.
-    from rplidar_a1 import RPLidarA1
-
     def clamp(v: float, lo: float, hi: float) -> float:
         return max(lo, min(hi, v))
 
@@ -387,6 +386,10 @@ def lidar_radar(matrix: RGBMatrix, port: str = '/dev/ttyUSB0', max_distance: int
                 # Panel separators / guides
                 draw_border(canvas, MAP_X0, 0, MAP_W, CANVAS_H, 40, 40, 40)
                 draw_border(canvas, HEUR_X0, 0, HEUR_W, CANVAS_H, 40, 40, 40)
+
+                # Axis lines through radar center
+                graphics.DrawLine(canvas, MAP_X0, CY, MAP_X0 + MAP_W - 1, CY, graphics.Color(0, 180, 180))
+                graphics.DrawLine(canvas, CX, 0, CX, CANVAS_H - 1, graphics.Color(0, 180, 180))
 
                 # Yellow dot at sensor origin
                 canvas.SetPixel(CX, CY, 255, 255, 0)
