@@ -252,7 +252,7 @@ class RPLidarA1:
                         if max_scans is not None and yielded >= max_scans:
                             return
                     scan = []
-                if quality > 0:
+                if quality > 0 and distance > 0:
                     scan.append((quality, angle, distance))
         finally:
             self.stop()
