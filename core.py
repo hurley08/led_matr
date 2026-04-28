@@ -262,7 +262,7 @@ class Runtime:
                     time.sleep(frame_time - elapsed)
 
         except KeyboardInterrupt:
-            pass
+            pass  # handled in finally block below
         finally:
             for stream in self._streams.values():
                 stream.close()

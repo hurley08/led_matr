@@ -87,7 +87,7 @@ class _MockLidarSource:
         return pts
 
     def stop(self):
-        pass  # no resources to release
+        """No resources to release."""
 
 
 # ── Sector analysis ───────────────────────────────────────────────────────────────
