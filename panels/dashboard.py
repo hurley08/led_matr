@@ -128,10 +128,45 @@ class Dashboard(Visualization):
         font_path   Optional path to a .bdf or .ttf font file.
                     If omitted, uses PIL's built-in 8px bitmap font.
         """
-        global _FONT
-        _FONT = _load_font(font_path)
+        self._font = _load_font(font_path)
+
+    def _text_width(self, text: str) -> int:
+        if not text:
+            return 0
+
+        bbox = self._font.getbbox(text)
+        if bbox is None:
+            return 0
+        left, _top, right, _bottom = bbox
+        return max(0, right - left)
+
+    def _draw_text(self, view: PanelView, x: int, y: int, text: str,
+                   r: int, g: int, b: int):
+        if not text:
+            return
+
+        bbox = self._font.getbbox(text)
+        if bbox is None:
+            return
+
+        left, top, _right, _bottom = bbox
+        mask = self._font.getmask(text, mode="L")
+        width, height = mask.size
+
+        for py in range(height):
+            row = py * width
+            for px in range(width):
+                if mask[row + px]:
+                    view.fill_rect(
+                        x + left + px, y + top + py,
+                        x + left + px, y + top + py,
+                        r, g, b,
+                    )
 
     def render(self, view: PanelView, *, lidar_sectors: SectorStats, **_):
+        _text_width = self._text_width
+        _draw_text = self._draw_text
+
         s = lidar_sectors
         dr, dg, db = _danger_color(s.min_dist)
 
