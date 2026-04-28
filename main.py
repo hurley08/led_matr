@@ -311,6 +311,9 @@ def lidar_radar(matrix: RGBMatrix, port: str = '/dev/ttyUSB0', max_distance: int
         angle=0° → top of display (forward), increasing clockwise.
         Orient the sensor so its 0° faces the same direction as the top of the panels.
     """
+    if max_distance <= 0:
+        raise ValueError(f"max_distance must be > 0, got {max_distance}")
+
     from rplidar_a1 import RPLidarA1
 
     CANVAS_W = matrix.width   # 128
