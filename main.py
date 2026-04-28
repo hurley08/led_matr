@@ -356,7 +356,6 @@ def lidar_radar(matrix: RGBMatrix, port: str = '/dev/ttyUSB0', max_distance: int
 # Main
 # ---------------------------------------------------------------------------
 def main():
-    import sys
     port = sys.argv[1] if len(sys.argv) > 1 else '/dev/ttyUSB0'
 
     matrix = create_matrix()
