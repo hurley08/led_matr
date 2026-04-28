@@ -44,8 +44,16 @@ def create_matrix():
 def main():
     args  = sys.argv[1:]
     mock  = "--mock" in args
-    port  = next((a.split("=")[1] for a in args if a.startswith("--port=")),
-                 "/dev/ttyUSB0")
+    port  = "/dev/ttyUSB0"
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg.startswith("--port="):
+            port = arg.split("=", 1)[1]
+        elif arg == "--port" and i + 1 < len(args):
+            port = args[i + 1]
+            i += 1
+        i += 1
     list_ = "--list" in args
 
     # Build streams
