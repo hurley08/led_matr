@@ -86,6 +86,9 @@ class _MockLidarSource:
             pts.append(Point(deg, d, 200))
         return pts
 
+    def stop(self):
+        pass  # no resources to release
+
 
 # ── Sector analysis ───────────────────────────────────────────────────────────────
 
@@ -127,6 +130,7 @@ def build_streams(*, mock: bool = False, port: str = "/dev/ttyUSB0"):
         name        = "lidar.scan",
         description = "Raw point cloud — List[Point(angle, distance, quality)]",
         source      = source.get_scan,
+        on_close    = source.stop,
     )
 
     lidar_sectors = Stream(
