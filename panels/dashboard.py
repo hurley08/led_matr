@@ -44,39 +44,10 @@ def _danger_color(mm: float) -> tuple:
 
 
 # ── Pixel font rendering ─────────────────────────────────────────────────────────
-# We pre-render text into tiny PIL images and stamp them into the PanelView.
-# This keeps font logic isolated and matches the 5×8 BDF font used on hardware.
+# Text rendering is handled by Dashboard's instance methods to avoid duplicate
+# font state and helper implementations at module scope.
 
 from PIL import Image, ImageDraw, ImageFont as _PILFont
-
-def _load_font(path: str | None = None):
-    if path:
-        try:
-            return _PILFont.truetype(path, 8)
-        except Exception:
-            pass
-    try:
-        return _PILFont.load_default(size=8)
-    except TypeError:
-        return _PILFont.load_default()
-
-_FONT = _load_font()
-
-def _text_width(text: str) -> int:
-    bb = _FONT.getbbox(text)
-    return bb[2] - bb[0]
-
-def _draw_text(view: PanelView, x: int, y: int,
-               text: str, r: int, g: int, b: int):
-    bb  = _FONT.getbbox(text)
-    tw  = bb[2] - bb[0]
-    th  = bb[3] - bb[1]
-    tmp = Image.new("L", (tw + 2, th + 2), 0)
-    ImageDraw.Draw(tmp).text((1 - bb[0], 1 - bb[1]), text, fill=255, font=_FONT)
-    for py in range(tmp.height):
-        for px in range(tmp.width):
-            if tmp.getpixel((px, py)) > 64:
-                view.set_pixel(x + px, y + py, r, g, b)
 
 
 # ── Sub-renderers ────────────────────────────────────────────────────────────────
