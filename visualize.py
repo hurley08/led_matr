@@ -14,7 +14,6 @@ What you see here is pixel-for-pixel what the matrix will show.
 import math
 import os
 import sys
-from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
