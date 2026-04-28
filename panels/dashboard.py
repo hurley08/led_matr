@@ -157,8 +157,7 @@ class Dashboard(Visualization):
             row = py * width
             for px in range(width):
                 if mask[row + px]:
-                    view.fill_rect(
-                        x + left + px, y + top + py,
+                    view.set_pixel(
                         x + left + px, y + top + py,
                         r, g, b,
                     )
