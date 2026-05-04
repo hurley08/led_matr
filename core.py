@@ -177,6 +177,7 @@ class Runtime:
     # ── Registration ───────────────────────────────────────────────────────────
 
     def add_stream(self, stream: Stream) -> "Runtime":
+        print(f"[runtime] stream registered: {stream.name!r}")
         self._streams[stream.name] = stream
         return self   # fluent API
 
@@ -187,6 +188,8 @@ class Runtime:
                 f"{type(viz).__name__} subscribes to unknown stream(s): {missing}\n"
                 f"Registered streams: {list(self._streams)}"
             )
+        print(f"[runtime] visualization registered: {type(viz).__name__} "
+              f"panel={viz.panel.name} streams={viz.streams}")
         self._vizs.append(viz)
         return self
 
@@ -262,9 +265,12 @@ class Runtime:
                     time.sleep(frame_time - elapsed)
 
         except KeyboardInterrupt:
-            pass  # handled in finally block below
+            print("\n[runtime] KeyboardInterrupt received — shutting down")
         finally:
+            print("[runtime] closing streams ...")
             for stream in self._streams.values():
+                print(f"[runtime]   closing {stream.name!r}")
                 stream.close()
+            print("[runtime] clearing matrix")
             matrix.Clear()
-            print("\nStopped.")
+            print("[runtime] stopped")

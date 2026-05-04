@@ -22,7 +22,7 @@ from panels.dashboard import Dashboard
 # ── Configuration ────────────────────────────────────────────────────────────────
 
 FONT_PATH  = "/home/pi4/projects/led_matr/rpi-rgb-led-matrix/fonts/5x8.bdf"
-TARGET_FPS = 20
+TARGET_FPS = 30
 
 # ── Matrix setup ─────────────────────────────────────────────────────────────────
 
@@ -37,11 +37,17 @@ def create_matrix():
     opts.gpio_slowdown            = 4
     opts.brightness               = 80
     opts.disable_hardware_pulsing = True
-    return RGBMatrix(options=opts)
+    print(f"[matrix] rows={opts.rows} cols={opts.cols} chain={opts.chain_length} "
+          f"parallel={opts.parallel} mapping={opts.hardware_mapping!r} "
+          f"slowdown={opts.gpio_slowdown} brightness={opts.brightness}")
+    matrix = RGBMatrix(options=opts)
+    print(f"[matrix] RGBMatrix created ({opts.cols * opts.chain_length}x{opts.rows} logical)")
+    return matrix
 
 # ── Main ─────────────────────────────────────────────────────────────────────────
 
 def main():
+    print("[boot] led_matr starting")
     args  = sys.argv[1:]
     mock  = "--mock" in args
     port  = "/dev/ttyUSB0"
@@ -56,12 +62,16 @@ def main():
         i += 1
     list_ = "--list" in args
     effective_mock = mock or list_
+    print(f"[boot] args: mock={effective_mock}, port={port!r}, list={list_}")
 
     # Build streams. In list mode, force mock streams so listing does not
     # instantiate hardware-backed sources with side effects.
+    print("[boot] building streams ...")
     scan_stream, sector_stream = build_streams(mock=effective_mock, port=port)
+    print("[boot] streams ready")
 
     # Build runtime and register everything
+    print("[boot] registering streams and visualizations ...")
     rt = (
         Runtime()
         .add_stream(scan_stream)
@@ -69,14 +79,18 @@ def main():
         .add_visualization(RadarMap(heading_deg=0))
         .add_visualization(Dashboard(font_path=FONT_PATH))
     )
+    print("[boot] runtime configured")
 
     # Always show the stream list so the operator can see what's running
     rt.list_streams()
 
     if list_:
+        print("[boot] --list mode, exiting")
         return
 
+    print("[boot] creating LED matrix ...")
     matrix = create_matrix()
+    print("[boot] matrix ready — starting render loop")
     rt.run(matrix, target_fps=TARGET_FPS)
 
 
