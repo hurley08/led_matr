@@ -67,7 +67,7 @@ class RPLidarError(Exception):
 class RPLidarA1:
     """Driver for the SLAMTEC RPLIDAR A1 (115200 baud, fixed)."""
 
-    def __init__(self, port: str, baudrate: int = 115200, timeout: float = 1.0):
+    def __init__(self, port: str, baudrate: int = 115200, timeout: float = 2.0):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
@@ -87,22 +87,50 @@ class RPLidarA1:
 
     # --- connection ----------------------------------------------------
 
-    def connect(self) -> None:
-        s = serial.Serial()
-        s.port = self.port
-        s.baudrate = self.baudrate
+    def _drain(self) -> None:
+        """Actively read and discard bytes until the sensor goes quiet."""
+        s = self._serial
+        s.timeout = 0.1
+        while True:
+            data = s.read(128)
+            if not data:
+                break
         s.timeout = self.timeout
-        s.dsrdtr = False
-        s.rtscts = False
-        s.open()
-        s.dtr = False
-        s.rts = False
-        time.sleep(0.1)
-        s.reset_input_buffer()
-        self._serial = s
+
+    def connect(self) -> None:
+        try:
+            s = serial.Serial()
+            s.port = self.port
+            s.baudrate = self.baudrate
+            s.timeout = self.timeout
+            s.dsrdtr = False
+            s.rtscts = False
+            s.open()
+            self._serial = s
+            # DTR is active-low for motor control: False=on, True=off
+            # pyserial defaults dtr=True on open, which stops the motor.
+            # Set dtr=False immediately to re-enable it.
+            s.rts = False
+            s.dtr = False
+            # Stop any in-progress scan and drain residual bytes
+            for _ in range(3):
+                self._send_cmd(CMD_STOP)
+                time.sleep(0.1)
+            self._drain()
+            # Soft-reset to get the sensor into a known idle state
+            self._send_cmd(CMD_RESET)
+            time.sleep(2.5)   # sensor takes ~2s to boot after reset
+            self._drain()
+        except serial.SerialException as exc:
+            raise RPLidarError(f'serial connection error: {exc}') from exc        
 
     def disconnect(self) -> None:
         if self._serial and self._serial.is_open:
+            # DTR active-low: True = motor off
+            try:
+                self._serial.dtr = True
+            except Exception:
+                pass
             self._serial.close()
         self._serial = None
 
@@ -180,6 +208,16 @@ class RPLidarA1:
             error_code=data[1] | (data[2] << 8),
         )
 
+    def start_motor(self) -> None:
+        """Enable motor — DTR active-low: False = motor on."""
+        self.serial_port.dtr = False
+        time.sleep(0.1)
+
+    def stop_motor(self) -> None:
+        """Disable motor — DTR active-low: True = motor off."""
+        self.serial_port.dtr = True
+        time.sleep(0.1)
+
     def stop(self) -> None:
         """Stop any active scan. No reply expected."""
         if self._serial is None or not self._serial.is_open:
@@ -211,9 +249,13 @@ class RPLidarA1:
         `start_of_scan` is True on the first measurement of each new revolution.
         Caller is responsible for having called `start_scan()` first.
         """
+        import serial as _serial
         s = self.serial_port
         while True:
-            packet = s.read(5)
+            try:
+                packet = s.read(5)
+            except _serial.SerialException as exc:
+                raise RPLidarError(f'serial read error: {exc}') from exc
             if len(packet) != 5:
                 # read timeout — try again
                 continue
@@ -252,7 +294,7 @@ class RPLidarA1:
                         if max_scans is not None and yielded >= max_scans:
                             return
                     scan = []
-                if quality > 0 and distance > 0:
+                if quality >= 10 and 150 < distance < 12000:
                     scan.append((quality, angle, distance))
         finally:
             self.stop()

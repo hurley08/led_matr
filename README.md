@@ -1,181 +1,126 @@
-# LED Matrix + RPLidar Radar Display
+# led_matr
 
-Python app for two chained 64x64 HUB75 panels on Raspberry Pi 4, using hzeller rpi-rgb-led-matrix and a SLAMTEC RPLidar A1.
+Real-time RPLIDAR visualizer on two chained 64×64 HUB75 LED panels driven by a Raspberry Pi 4.
 
-## What It Does
+## Panels
 
-- Runs startup diagnostics on a 128x64 display.
-- Uses a split layout during lidar mode:
-	- Left panel (64x64): radar map centered on the panel.
-	- Right panel (64x64): heuristic metrics and safety indicators.
+| Panel | Content |
+|-------|---------|
+| LEFT  | Radar map — 360° point cloud plotted in polar coordinates |
+| RIGHT | Dashboard — danger bar, sector proximity bars, scan metrics |
 
-## Current Lidar UI Layout
+## Dashboard layout
 
-ASCII panel map (128x64 total):
-
-```text
-+------------------------------+------------------------------+
-|          LEFT PANEL          |         RIGHT PANEL          |
-|            (64x64)           |            (64x64)           |
-|                              | N  [nearest danger score]    |
-|      Radar points + origin   | A  [average distance]        |
-|      red=danger, yellow=far  | D  [scan density]            |
-|                              | [ SAFE / DANG status strip ] |
-|                              | F  R  B  L bars              |
-+------------------------------+------------------------------+
+```
+ 0– 9   Danger bar — UNDEF / CLEAR / CAUTION / !! DANGER !! (all-angle min distance)
+10–18   Sector labels: LT / FT / RT
+19–30   Sector proximity bars (full = close, red; empty = clear, green)
+31      Separator
+32–41   DNS density label + bar
+42–51   AVG average distance label + bar
+52–61   MIN minimum distance label + bar
+62–63   Health strip
 ```
 
-Left panel:
-- Radar map with sensor origin at center (yellow dot).
-- Map is rotated 90° CW; forward faces the top of the display.
-- Non-linear zoom (gamma 0.6) for better near-field detail.
-- Point color semantics:
-	- Pure red = within DANGER_CLOSE_MM (danger zone)
-	- Orange → yellow = beyond danger zone up to ~55% of max range
-	- Nothing plotted beyond 55% of max_distance (deep-far points omitted)
-
-Right panel (heuristics):
-- N bar: nearest-proximity danger score. Red when close, green when far.
-- A bar: average distance across all returns. Red when close, green when far.
-- D bar: sample density (white intensity).
-- SAFE/DANG status strip:
-	- Green (SAFE) when no obstacle is within DANGER_CLOSE_MM and no sector is triggered.
-	- Red (DANG) when the global p10 distance or any individual sector exceeds the threshold.
-- FRBL bars (Front, Right, Back, Left):
-	- Height reflects per-sector danger level (smoothed with hysteresis).
-	- Color matches the SAFE/DANG flag — green when safe, red when danger.
-	- Sectors use raw lidar angle (0° = forward, increasing clockwise).
-
-Label support:
-- Uses a tiny BDF font when available to draw N, A, D, SAFE/DANG, and F/R/B/L labels.
-- Font probe order:
-	1. /home/pi4/Projects/rpi-rgb-led-matrix/fonts/tom-thumb.bdf
-	2. /home/pi4/Projects/rpi-rgb-led-matrix/fonts/4x6.bdf
+Danger thresholds (configurable in `panels/dashboard.py`):
+- `DANGER_MM = 150` — red, `!! DANGER !!`
+- `CAUTION_MM = 1500` — yellow, `CAUTION`
+- `≥ CAUTION_MM` — green, `CLEAR`
+- No valid readings — black, `UNDEF`
 
 ## Hardware
 
 - Raspberry Pi 4
-- Two 64x64 HUB75 LED panels
-- RPLidar A1 (USB serial)
-- Dedicated 5V / 4A or better panel power supply
+- Two 64×64 HUB75 LED matrices chained (128×64 total)
+- SLAMTEC RPLIDAR A1M8
+- 5V/4A+ dedicated supply for LED panels
+- CP2102 or CH340 USB-serial adapter for RPLIDAR
 
-Important:
-- Share ground between panel PSU and Pi.
-- Use direct GPIO regular mapping (no HAT).
+## Software setup
 
-## Wiring (BCM)
+### 1. Install dependencies
 
-- R1 -> GPIO 5
-- G1 -> GPIO 13
-- B1 -> GPIO 6
-- R2 -> GPIO 12
-- G2 -> GPIO 16
-- B2 -> GPIO 23
-- A -> GPIO 22
-- B -> GPIO 26
-- C -> GPIO 27
-- D -> GPIO 20
-- E -> GPIO 24 (needed for 64-row panels)
-- OE -> GPIO 18
-- CLK -> GPIO 17
-- LAT -> GPIO 4
+```bash
+sudo apt-get update && sudo apt-get install -y python3-dev python3-pillow python3-serial
+```
 
-Reference:
-- https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md
+### 2. Build and install the LED matrix library
 
-## Setup
+```bash
+cd rpi-rgb-led-matrix
+make build-python PYTHON=$(which python3)
+sudo make install-python PYTHON=$(which python3)
+```
 
-1. Install OS packages
+### 3. Disable onboard audio (required for GPIO DMA)
 
-	 sudo apt-get update
-	 sudo apt-get install -y python3-dev python3-pillow
+In `/boot/config.txt` (or `/boot/firmware/config.txt`):
+```
+dtparam=audio=off
+```
+Then reboot.
 
-2. Install Python serial dependency
+## Usage
 
-	 pip3 install pyserial
+```bash
+sudo python3 main.py                        # real RPLIDAR on /dev/ttyUSB0
+sudo python3 main.py --port=/dev/ttyUSB1    # specify port
+sudo python3 main.py --mock                 # mock data, no hardware needed
+     python3 main.py --list                 # list streams and exit
+```
 
-3. Build and install matrix bindings
+Boot output includes `[boot]`, `[lidar]`, `[matrix]`, and `[runtime]` prefixed diagnostics at each stage.
 
-	 git clone https://github.com/hzeller/rpi-rgb-led-matrix.git
-	 cd rpi-rgb-led-matrix
-	 make build-python PYTHON=$(which python3)
-	 sudo make install-python PYTHON=$(which python3)
+## Matrix configuration
 
-4. Disable onboard audio PWM conflict
+Settings in `main.py` `create_matrix()`:
 
-	 Edit /boot/config.txt (or /boot/firmware/config.txt)
-	 Change:
-	 dtparam=audio=on
-	 To:
-	 dtparam=audio=off
+| Option | Value |
+|--------|-------|
+| rows | 64 |
+| cols | 64 |
+| chain_length | 2 |
+| brightness | 80 |
+| gpio_slowdown | 4 (RPi4) |
+| hardware_mapping | regular |
+| disable_hardware_pulsing | True |
 
-	 Reboot after editing.
+## RPLIDAR driver (`rplidar.py`)
 
-## Run
+Custom minimal driver (replaces unmaintained PyPI `rplidar` package):
+- Speaks the SLAMTEC serial protocol directly over pyserial
+- Motor control via DTR line (active-low: `dtr=False` = motor on)
+- Issues `CMD_RESET` on connect to guarantee a clean idle state before scanning
+- Actively drains the serial buffer after reset to discard boot output
+- `iter_scans()` yields full 360° revolutions as `(quality, angle_deg, distance_mm)` lists
 
-From this folder:
+## Sector definitions
 
-	 cd /home/pi4/Projects/led_matr
-	 python3 main.py /dev/ttyUSB0
+Lidar mounted 180° from forward — sectors are rotated accordingly:
 
-If your lidar appears on a different serial device, pass that path instead.
+| Sector | Angle range |
+|--------|------------|
+| Front  | 135°–225°  |
+| Left   | 225°–315°  |
+| Right  | 45°–135°   |
 
-## Permission Notes
+## Wiring (regular mapping)
 
-- Lidar serial access needs dialout group membership.
-- Matrix timing quality is best with elevated scheduling rights.
-- You may still see non-root timing warnings from the matrix library even when capabilities are configured.
-
-Useful checks:
-
-	 groups
-	 ls -l /dev/ttyUSB0
-
-## Tunable Constants (in main.py)
-
-Inside `lidar_radar()`:
-- `max_distance` (default 3000 mm): radar scaling distance cap.
-- `DANGER_CLOSE_MM` (default 300 mm): SAFE→DANG threshold. Also sets the red/yellow boundary on the map — pure red dots on the map are danger-close.
-- `RADAR_PLOT_RATIO` (default 0.55): fraction of max_distance beyond which map points are omitted. Points between DANGER_CLOSE_MM and this cutoff grade orange→yellow.
-- `RADAR_ZOOM_GAMMA` (default 0.6): nonlinear zoom exponent for near-field detail.
-- `SECTOR_HOLD_FRAMES` / `SECTOR_HOLD_TRIGGER`: hysteresis for FRBL bars (hold frames and trigger threshold).
-
-Matrix options in `create_matrix()`:
-- `rows`, `cols`, `chain_length`, `parallel`
-- `hardware_mapping`
-- `gpio_slowdown`
-- `brightness`
-- `disable_hardware_pulsing`
-
-## Startup Sequence
-
-1. Matrix init
-2. Color sweep
-3. Panel border test
-4. Horizontal jump test
-5. Live lidar radar + heuristics until Ctrl+C
+See [hzeller wiring guide](https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md) for GPIO pin assignments. Power LED panels from a dedicated 5V/4A+ supply with shared GND to the Pi.
 
 ## Troubleshooting
 
-- No panel output:
-	- Check panel power and shared ground.
-	- Verify GPIO wiring and regular hardware mapping.
-- Color shimmer or flicker:
-	- Increase `gpio_slowdown` in `create_matrix()`.
-- Lidar read failures or intermittent serial exceptions:
-	- Re-seat USB cable.
-	- Verify stable lidar power.
-	- Confirm no other process is using /dev/ttyUSB0.
-- SAFE/DANG seems too sensitive or never triggers:
-	- The RPLidar A1 has a hardware blind zone of ~150 mm minimum range.
-	- Setting `DANGER_CLOSE_MM` below ~150 mm means the lidar physically cannot report readings in that zone, so the threshold will never trigger.
-	- Keep `DANGER_CLOSE_MM` above 150 mm for reliable detection.
-	- Increase `DANGER_CLOSE_MM` for earlier warning; decrease for stricter (closer) warning.
-- Map points not visible at expected distances:
-	- Points beyond `RADAR_PLOT_RATIO * max_distance` are intentionally omitted.
-	- Increase `RADAR_PLOT_RATIO` (up to 1.0) to show farther points.
+| Symptom | Cause / fix |
+|---------|------------|
+| Motor stops on connect | DTR polarity — `dtr=False` must be set immediately after `open()` |
+| `descriptor short: 0 bytes` | Sensor not yet idle — `CMD_RESET` + drain resolves this |
+| `bad descriptor sync` | Stale scan bytes in buffer — active drain clears them |
+| Ctrl-C ignored | Per-point print flood — never print inside `iter_scans` hot path |
+| Dashboard stuck on UNDEF | No valid points — check scan health and distance filter bounds |
+
+- **Permission errors**: Must run with `sudo` for GPIO access
+- **Audio conflicts**: Ensure onboard audio is disabled in `/boot/config.txt`
 
 ## License
 
-Uses hzeller rpi-rgb-led-matrix:
-- https://github.com/hzeller/rpi-rgb-led-matrix
+This project uses the [hzeller/rpi-rgb-led-matrix](https://github.com/hzeller/rpi-rgb-led-matrix) library.

@@ -1,42 +1,15 @@
 #!/usr/bin/env python3
 """
-matrix_init.py
-Two chained 64x64 HUB75 LED matrices on Raspberry Pi 4
-Using hzeller's rpi-rgb-led-matrix library
+main.py — entry point for led_matr.
 
---- Setup (run these on the RPi4 first) ---
+Wires streams and visualizations into the Runtime and starts the render loop.
 
-1. Install dependencies:
-      sudo apt-get update && sudo apt-get install -y python3-dev python3-pillow
-
-2. Clone and build the library:
-      git clone https://github.com/hzeller/rpi-rgb-led-matrix.git
-      cd rpi-rgb-led-matrix
-      make build-python PYTHON=$(which python3)
-      sudo make install-python PYTHON=$(which python3)
-
-3. Disable onboard audio (it conflicts with the PWM the library uses):
-      Edit /boot/config.txt (or /boot/firmware/config.txt on newer RPi OS)
-      Change:  dtparam=audio=on
-      To:      dtparam=audio=off
-      Then reboot.
-
-4. Wiring — no HAT, direct GPIO (BCM numbering):
-      Use the "regular" hardware mapping from the hzeller wiring guide:
-      https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md
-
-      Key connections (verify against the guide above):
-        R1 → GPIO 5    G1 → GPIO 13   B1 → GPIO 6
-        R2 → GPIO 12   G2 → GPIO 16   B2 → GPIO 23
-        A  → GPIO 22   B  → GPIO 26   C  → GPIO 27
-        D  → GPIO 20   E  → GPIO 24   (E needed for 64 rows)
-        OE → GPIO 18   CLK → GPIO 17  LAT → GPIO 4
-
-      ⚠️  Power the panels from a dedicated 5V/4A+ supply.
-          Share GND between the supply and the RPi4.
-
-5. Run with sudo (required for GPIO access):
-      sudo python3 matrix_init.py
+Usage
+─────
+    sudo python3 main.py              # real RPLidar on /dev/ttyUSB0
+    sudo python3 main.py --mock       # mock data, no hardware needed
+    sudo python3 main.py --port /dev/ttyUSB1
+         python3 main.py --list       # show available streams, then exit
 """
 
 import sys
@@ -244,28 +217,37 @@ def render_two_moving_objects(matrix: RGBMatrix, canvas):
             for py in range(y2, y2 + 10):
                 canvas.SetPixel(px, py, 0, 255, 255)
 
-        canvas = matrix.SwapOnVSync(canvas)
-        time.sleep(delay)
-        
-        # Move object 1
-        x1 += dx1
-        if x1 < 0:
-            x1 = 0
-            dx1 = -dx1
-        elif x1 + 10 > matrix.width:
-            x1 = matrix.width - 10
-            dx1 = -dx1
-        
-        # Move object 2
-        x2 += dx2
-        if x2 < 0:
-            x2 = 0
-            dx2 = -dx2
-        elif x2 + 10 > matrix.width:
-            x2 = matrix.width - 10
-            dx2 = -dx2
-        
-        frames_to_render -= 1
+from core    import Runtime
+from streams import build_streams
+from panels.map_panel import RadarMap
+from panels.dashboard import Dashboard
+
+# ── Configuration ────────────────────────────────────────────────────────────────
+
+FONT_PATH  = "/home/pi4/projects/led_matr/rpi-rgb-led-matrix/fonts/5x8.bdf"
+TARGET_FPS = 30
+
+# ── Matrix setup ─────────────────────────────────────────────────────────────────
+
+def create_matrix():
+    from rgbmatrix import RGBMatrix, RGBMatrixOptions
+    opts = RGBMatrixOptions()
+    opts.rows                     = 64
+    opts.cols                     = 64
+    opts.chain_length             = 2
+    opts.parallel                 = 1
+    opts.hardware_mapping         = "regular"
+    opts.gpio_slowdown            = 4
+    opts.brightness               = 80
+    opts.disable_hardware_pulsing = True
+    print(f"[matrix] rows={opts.rows} cols={opts.cols} chain={opts.chain_length} "
+          f"parallel={opts.parallel} mapping={opts.hardware_mapping!r} "
+          f"slowdown={opts.gpio_slowdown} brightness={opts.brightness}")
+    matrix = RGBMatrix(options=opts)
+    print(f"[matrix] RGBMatrix created ({opts.cols * opts.chain_length}x{opts.rows} logical)")
+    return matrix
+
+# ── Main ─────────────────────────────────────────────────────────────────────────
 
 
 def led_sequence_test(matrix: RGBMatrix, canvas):
@@ -544,16 +526,52 @@ def lidar_radar(matrix: RGBMatrix, port: str = '/dev/ttyUSB0', max_distance: int
 # Main
 # ---------------------------------------------------------------------------
 def main():
-    import sys
-    port = sys.argv[1] if len(sys.argv) > 1 else '/dev/ttyUSB0'
+    print("[boot] led_matr starting")
+    args  = sys.argv[1:]
+    mock  = "--mock" in args
+    port  = "/dev/ttyUSB0"
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg.startswith("--port="):
+            port = arg.split("=", 1)[1]
+        elif arg == "--port" and i + 1 < len(args):
+            port = args[i + 1]
+            i += 1
+        i += 1
+    list_ = "--list" in args
+    effective_mock = mock or list_
+    print(f"[boot] args: mock={effective_mock}, port={port!r}, list={list_}")
 
+    # Build streams. In list mode, force mock streams so listing does not
+    # instantiate hardware-backed sources with side effects.
+    print("[boot] building streams ...")
+    scan_stream, sector_stream = build_streams(mock=effective_mock, port=port)
+    print("[boot] streams ready")
+
+    # Build runtime and register everything
+    print("[boot] registering streams and visualizations ...")
+    rt = (
+        Runtime()
+        .add_stream(scan_stream)
+        .add_stream(sector_stream)
+        .add_visualization(RadarMap(heading_deg=0))
+        .add_visualization(Dashboard(font_path=FONT_PATH))
+    )
+    print("[boot] runtime configured")
+
+    # Always show the stream list so the operator can see what's running
+    rt.list_streams()
+
+    if list_:
+        print("[boot] --list mode, exiting")
+        return
+
+    print("[boot] creating LED matrix ...")
     matrix = create_matrix()
-    startup_test(matrix)
-    lidar_radar(matrix, port=port)
-    matrix.Clear()
-    print("Done.")
+    print("[boot] matrix ready — starting render loop")
+    rt.run(matrix, target_fps=TARGET_FPS)
 
 
 if __name__ == "__main__":
     main()
-
