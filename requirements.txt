@@ -1,0 +1,3 @@
+pyserial
+Pillow
+# Local dependency: rpi-rgb-led-matrix (sibling project, build from ../rpi-rgb-led-matrix)
