@@ -39,4 +39,13 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Test with pytest
-        shell
+        shell: bash
+        run: |
+          pytest --html=report.html --self-contained-html
+
+      - name: Upload pytest report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-report-py${{ matrix.python-version }}
+          path: report.html
