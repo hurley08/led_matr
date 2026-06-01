@@ -85,3 +85,9 @@ unearth==0.18.2
 urllib3==2.6.3
 virtualenv==21.2.1
 wcwidth==0.6.0
+pyserial
+Pillow
+pytest
+pytest-html
+# Local dependency: rpi-rgb-led-matrix (sibling project, build from ../rpi-rgb-led-matrix)
+
