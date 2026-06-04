@@ -102,15 +102,22 @@ class Stream:
         source:      Callable[[], Any],
         *,
         depends_on:  Optional[List[str]] = None,
+        on_close:    Optional[Callable[[], None]] = None,
     ):
         self.name        = name
         self.description = description
         self.depends_on  = depends_on or []
         self._source     = source
+        self._on_close   = on_close
         self.latest: Any = None
 
     def update(self):
         self.latest = self._source()
+
+    def close(self):
+        """Release any resources held by the underlying source."""
+        if self._on_close is not None:
+            self._on_close()
 
     def __repr__(self) -> str:
         dep = f"  derived from {self.depends_on}" if self.depends_on else "  primary"
@@ -170,6 +177,7 @@ class Runtime:
     # ── Registration ───────────────────────────────────────────────────────────
 
     def add_stream(self, stream: Stream) -> "Runtime":
+        print(f"[runtime] stream registered: {stream.name!r}")
         self._streams[stream.name] = stream
         return self   # fluent API
 
@@ -180,6 +188,8 @@ class Runtime:
                 f"{type(viz).__name__} subscribes to unknown stream(s): {missing}\n"
                 f"Registered streams: {list(self._streams)}"
             )
+        print(f"[runtime] visualization registered: {type(viz).__name__} "
+              f"panel={viz.panel.name} streams={viz.streams}")
         self._vizs.append(viz)
         return self
 
@@ -255,5 +265,12 @@ class Runtime:
                     time.sleep(frame_time - elapsed)
 
         except KeyboardInterrupt:
+            print("\n[runtime] KeyboardInterrupt received — shutting down")
+        finally:
+            print("[runtime] closing streams ...")
+            for stream in self._streams.values():
+                print(f"[runtime]   closing {stream.name!r}")
+                stream.close()
+            print("[runtime] clearing matrix")
             matrix.Clear()
-            print("\nStopped.")
+            print("[runtime] stopped")

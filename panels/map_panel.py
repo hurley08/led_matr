@@ -63,8 +63,8 @@ class RadarMap(Visualization):
                 if i % 3 == 0:
                     continue
                 a = 2 * math.pi * i / n
-                view.set_pixel(int(CX + r_px * math.sin(a)),
-                               int(CY - r_px * math.cos(a)),
+                view.set_pixel(int(CX + r_px * math.cos(a)),
+                               int(CY + r_px * math.sin(a)),
                                bright, bright, bright)
 
         # Green dotted crosshair
@@ -77,18 +77,18 @@ class RadarMap(Visualization):
 
         # Point cloud
         for pt in lidar_scan:
-            if pt.distance <= 0 or pt.quality == 0:
+            if pt.quality < 10 or not (150 < pt.distance < 12000):
                 continue
             a  = math.radians(pt.angle)
-            px = int(CX + (pt.distance / 1000) * PPM * math.sin(a))
-            py = int(CY - (pt.distance / 1000) * PPM * math.cos(a))
+            px = int(CX + (pt.distance / 1000) * PPM * math.cos(a))
+            py = int(CY + (pt.distance / 1000) * PPM * math.sin(a))
             view.set_pixel(px, py, *_dist_color(pt.distance))
 
         # Heading arrow
         a = math.radians(self.heading)
         for i in range(3, 13):
-            view.set_pixel(int(CX + i * math.sin(a)),
-                           int(CY - i * math.cos(a)),
+            view.set_pixel(int(CX + i * math.cos(a)),
+                           int(CY + i * math.sin(a)),
                            255, 255, 255)
 
         # Robot marker (hollow square)

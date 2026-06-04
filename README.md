@@ -1,103 +1,123 @@
-# LED Matrix Display
+# led_matr
 
-A Python application for controlling two chained 64x64 HUB75 LED matrices on a Raspberry Pi 4 using the hzeller rpi-rgb-led-matrix library.
+Real-time RPLIDAR visualizer on two chained 64×64 HUB75 LED panels driven by a Raspberry Pi 4.
 
-## Features
+## Panels
 
-- **Dual Panel Display**: Controls two 64x64 LED panels (128x64 total resolution)
-- **Startup Diagnostics**: Includes various test patterns and animations
-- **Panel Jump Test**: Animates a square moving horizontally across both panels
-- **Diagonal Circle Test**: Animates a circle moving diagonally across both panels
-- **Color Cycling**: Displays rainbow color transitions during startup
+| Panel | Content |
+|-------|---------|
+| LEFT  | Radar map — 360° point cloud plotted in polar coordinates |
+| RIGHT | Dashboard — danger bar, sector proximity bars, scan metrics |
 
-## Hardware Requirements
+## Dashboard layout
 
-- Raspberry Pi 4
-- Two 64x64 HUB75 LED matrices
-- 5V/4A+ dedicated power supply for the LED panels
-- GPIO connections (see wiring section below)
-
-## Software Setup
-
-### 1. Install Dependencies
-
-```bash
-sudo apt-get update && sudo apt-get install -y python3-dev python3-pillow
+```
+ 0– 9   Danger bar — UNDEF / CLEAR / CAUTION / !! DANGER !! (all-angle min distance)
+10–18   Sector labels: LT / FT / RT
+19–30   Sector proximity bars (full = close, red; empty = clear, green)
+31      Separator
+32–41   DNS density label + bar
+42–51   AVG average distance label + bar
+52–61   MIN minimum distance label + bar
+62–63   Health strip
 ```
 
-### 2. Clone and Build the LED Matrix Library
+Danger thresholds (configurable in `panels/dashboard.py`):
+- `DANGER_MM = 150` — red, `!! DANGER !!`
+- `CAUTION_MM = 1500` — yellow, `CAUTION`
+- `≥ CAUTION_MM` — green, `CLEAR`
+- No valid readings — black, `UNDEF`
+
+## Hardware
+
+- Raspberry Pi 4
+- Two 64×64 HUB75 LED matrices chained (128×64 total)
+- SLAMTEC RPLIDAR A1M8
+- 5V/4A+ dedicated supply for LED panels
+- CP2102 or CH340 USB-serial adapter for RPLIDAR
+
+## Software setup
+
+### 1. Install dependencies
 
 ```bash
-git clone https://github.com/hzeller/rpi-rgb-led-matrix.git
+sudo apt-get update && sudo apt-get install -y python3-dev python3-pillow python3-serial
+```
+
+### 2. Build and install the LED matrix library
+
+```bash
 cd rpi-rgb-led-matrix
 make build-python PYTHON=$(which python3)
 sudo make install-python PYTHON=$(which python3)
 ```
 
-### 3. Disable Onboard Audio
+### 3. Disable onboard audio (required for GPIO DMA)
 
-Edit `/boot/config.txt` (or `/boot/firmware/config.txt` on newer RPi OS):
-
-```bash
-# Change this line:
-dtparam=audio=on
-# To:
+In `/boot/config.txt` (or `/boot/firmware/config.txt`):
+```
 dtparam=audio=off
 ```
-
-Then reboot: `sudo reboot`
-
-## Wiring
-
-Uses direct GPIO wiring (no HAT required). Follow the "regular" hardware mapping from the [hzeller wiring guide](https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md).
-
-### Key GPIO Connections (BCM numbering):
-- R1 → GPIO 5
-- G1 → GPIO 13
-- B1 → GPIO 6
-- R2 → GPIO 12
-- G2 → GPIO 16
-- B2 → GPIO 23
-- A → GPIO 22
-- B → GPIO 26
-- C → GPIO 27
-- D → GPIO 20
-- E → GPIO 24  (required for 64 rows)
-- OE → GPIO 18
-- CLK → GPIO 17
-- LAT → GPIO 4
-
-⚠️ **Important**: Power the LED panels from a dedicated 5V/4A+ supply. Share GND between the power supply and the Raspberry Pi.
+Then reboot.
 
 ## Usage
 
-Run with sudo (required for GPIO access):
-
 ```bash
-sudo python3 main.py
+sudo python3 main.py                        # real RPLIDAR on /dev/ttyUSB0
+sudo python3 main.py --port=/dev/ttyUSB1    # specify port
+sudo python3 main.py --mock                 # mock data, no hardware needed
+     python3 main.py --list                 # list streams and exit
 ```
 
-The application will:
-1. Initialize the LED matrix
-2. Run startup diagnostic tests (color cycling, border drawing)
-3. Display panel labels ("P1" and "P2")
-4. Run the panel jump test animation
-5. Run the diagonal circle test animation
-6. Enter idle mode (press Ctrl+C to exit)
+Boot output includes `[boot]`, `[lidar]`, `[matrix]`, and `[runtime]` prefixed diagnostics at each stage.
 
-## Configuration
+## Matrix configuration
 
-Matrix settings can be adjusted in the `create_matrix()` function:
-- `rows`: Height of one panel (64)
-- `cols`: Width of one panel (64)
-- `chain_length`: Number of panels chained (2)
-- `brightness`: LED brightness (0-100, default 80)
-- `gpio_slowdown`: GPIO timing adjustment (4 for RPi4)
+Settings in `main.py` `create_matrix()`:
+
+| Option | Value |
+|--------|-------|
+| rows | 64 |
+| cols | 64 |
+| chain_length | 2 |
+| brightness | 80 |
+| gpio_slowdown | 4 (RPi4) |
+| hardware_mapping | regular |
+| disable_hardware_pulsing | True |
+
+## RPLIDAR driver (`rplidar.py`)
+
+Custom minimal driver (replaces unmaintained PyPI `rplidar` package):
+- Speaks the SLAMTEC serial protocol directly over pyserial
+- Motor control via DTR line (active-low: `dtr=False` = motor on)
+- Issues `CMD_RESET` on connect to guarantee a clean idle state before scanning
+- Actively drains the serial buffer after reset to discard boot output
+- `iter_scans()` yields full 360° revolutions as `(quality, angle_deg, distance_mm)` lists
+
+## Sector definitions
+
+Lidar mounted 180° from forward — sectors are rotated accordingly:
+
+| Sector | Angle range |
+|--------|------------|
+| Front  | 135°–225°  |
+| Left   | 225°–315°  |
+| Right  | 45°–135°   |
+
+## Wiring (regular mapping)
+
+See [hzeller wiring guide](https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/wiring.md) for GPIO pin assignments. Power LED panels from a dedicated 5V/4A+ supply with shared GND to the Pi.
 
 ## Troubleshooting
 
-- **No display**: Check power supply, wiring connections, and GPIO pin assignments
-- **Flickering**: Increase `gpio_slowdown` value or check for electrical interference
+| Symptom | Cause / fix |
+|---------|------------|
+| Motor stops on connect | DTR polarity — `dtr=False` must be set immediately after `open()` |
+| `descriptor short: 0 bytes` | Sensor not yet idle — `CMD_RESET` + drain resolves this |
+| `bad descriptor sync` | Stale scan bytes in buffer — active drain clears them |
+| Ctrl-C ignored | Per-point print flood — never print inside `iter_scans` hot path |
+| Dashboard stuck on UNDEF | No valid points — check scan health and distance filter bounds |
+
 - **Permission errors**: Must run with `sudo` for GPIO access
 - **Audio conflicts**: Ensure onboard audio is disabled in `/boot/config.txt`
 
