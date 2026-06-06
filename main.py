@@ -12,31 +12,18 @@ Usage
          python3 main.py --list       # show available streams, then exit
 """
 
+from __future__ import annotations
+
 import sys
 import os
 import time
 import math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, '/home/pi4/Projects/led_matr')
-from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
-from rplidar_a1 import RPLidarA1
+from typing import TYPE_CHECKING
 
-# ---------------------------------------------------------------------------
-# Matrix configuration
-# ---------------------------------------------------------------------------
-
-def create_matrix() -> RGBMatrix:
-    options = RGBMatrixOptions()
-
-    options.rows            = 64          # height of one panel
-    options.cols            = 64          # width of one panel
-    options.chain_length    = 2           # two panels daisy-chained
-    options.parallel        = 1           # single chain
-    options.hardware_mapping = "regular"  # no HAT — direct GPIO wiring
-    options.gpio_slowdown   = 4           # RPi4 is fast; slowdown prevents glitches
-    options.brightness      = 80          # 0–100; lower = less heat & power draw
-    options.disable_hardware_pulsing = True
-    return RGBMatrix(options=options)
+if TYPE_CHECKING:
+    from rgbmatrix import RGBMatrix
 
 
 # ---------------------------------------------------------------------------
@@ -221,34 +208,12 @@ from core    import Runtime
 from streams import build_streams
 from panels.map_panel import RadarMap
 from panels.dashboard import Dashboard
+from matrix_backend import create_matrix
 
 # ── Configuration ────────────────────────────────────────────────────────────────
 
 FONT_PATH  = "/home/pi4/projects/led_matr/rpi-rgb-led-matrix/fonts/5x8.bdf"
 TARGET_FPS = 30
-
-# ── Matrix setup ─────────────────────────────────────────────────────────────────
-
-def create_matrix():
-    from rgbmatrix import RGBMatrix, RGBMatrixOptions
-    opts = RGBMatrixOptions()
-    opts.rows                     = 64
-    opts.cols                     = 64
-    opts.chain_length             = 2
-    opts.parallel                 = 1
-    opts.hardware_mapping         = "regular"
-    opts.gpio_slowdown            = 4
-    opts.brightness               = 80
-    opts.disable_hardware_pulsing = True
-    print(f"[matrix] rows={opts.rows} cols={opts.cols} chain={opts.chain_length} "
-          f"parallel={opts.parallel} mapping={opts.hardware_mapping!r} "
-          f"slowdown={opts.gpio_slowdown} brightness={opts.brightness}")
-    matrix = RGBMatrix(options=opts)
-    print(f"[matrix] RGBMatrix created ({opts.cols * opts.chain_length}x{opts.rows} logical)")
-    return matrix
-
-# ── Main ─────────────────────────────────────────────────────────────────────────
-
 
 def led_sequence_test(matrix: RGBMatrix, canvas):
     """Turn on and off each LED in sequence."""
@@ -286,6 +251,9 @@ def lidar_radar(matrix: RGBMatrix, port: str = '/dev/ttyUSB0', max_distance: int
         angle=0° → top of display (forward), increasing clockwise.
         Orient the sensor so its 0° faces the same direction as the top of the panels.
     """
+    from rgbmatrix import graphics
+    from rplidar import RPLidarA1
+
     def clamp(v: float, lo: float, hi: float) -> float:
         return max(lo, min(hi, v))
 
@@ -529,6 +497,7 @@ def main():
     print("[boot] led_matr starting")
     args  = sys.argv[1:]
     mock  = "--mock" in args
+    software = "--software" in args
     port  = "/dev/ttyUSB0"
     i = 0
     while i < len(args):
@@ -541,7 +510,10 @@ def main():
         i += 1
     list_ = "--list" in args
     effective_mock = mock or list_
-    print(f"[boot] args: mock={effective_mock}, port={port!r}, list={list_}")
+    print(
+        f"[boot] args: mock={effective_mock}, software={software}, "
+        f"port={port!r}, list={list_}"
+    )
 
     # Build streams. In list mode, force mock streams so listing does not
     # instantiate hardware-backed sources with side effects.
@@ -568,7 +540,7 @@ def main():
         return
 
     print("[boot] creating LED matrix ...")
-    matrix = create_matrix()
+    matrix = create_matrix(software=software)
     print("[boot] matrix ready — starting render loop")
     rt.run(matrix, target_fps=TARGET_FPS)
 

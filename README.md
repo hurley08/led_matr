@@ -46,6 +46,10 @@ sudo apt-get update && sudo apt-get install -y python3-dev python3-pillow python
 
 ### 2. Build and install the LED matrix library
 
+This dependency is only required on the Raspberry Pi that drives the panels.
+CI, development machines, and downstream tests use the built-in software
+backend and must not install or build `rpi-rgb-led-matrix`.
+
 ```bash
 cd rpi-rgb-led-matrix
 make build-python PYTHON=$(which python3)
@@ -66,8 +70,13 @@ Then reboot.
 sudo python3 main.py                        # real RPLIDAR on /dev/ttyUSB0
 sudo python3 main.py --port=/dev/ttyUSB1    # specify port
 sudo python3 main.py --mock                 # mock data, no hardware needed
+     python3 main.py --mock --software      # mock sensor and matrix, any Linux host
      python3 main.py --list                 # list streams and exit
 ```
+
+Application modules can be imported without `rgbmatrix` installed. Tests that
+need a matrix should use `matrix_backend.SoftwareMatrix`; the hardware binding
+is imported lazily only when the real backend is selected.
 
 Boot output includes `[boot]`, `[lidar]`, `[matrix]`, and `[runtime]` prefixed diagnostics at each stage.
 
