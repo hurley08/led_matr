@@ -64,7 +64,6 @@ python-discovery==1.2.2
 python-dotenv==1.2.2
 PyYAML==6.0.3
 resolvelib==1.2.1
-rgbmatrix 
 rpi-rgb-led-matrix
 RGBMatrixEmulator==0.16.3
 rich==14.3.4
