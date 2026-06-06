@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "led-matr"
+version = "0.1.0"
+description = "Real-time RPLIDAR visualizer for chained HUB75 LED panels"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "Pillow",
+    "pyserial",
+]
+
+[project.optional-dependencies]
+dev = [
+    "flake8",
+    "pytest",
+    "pytest-html",
+]
+rpi = [
+    "gpiod",
+    "gpiozero",
+    "lgpio",
+    "spidev",
+]
+
+[tool.setuptools]
+py-modules = ["core", "main", "rplidar", "streams", "visualize"]
+
+[tool.setuptools.packages.find]
+include = ["panels*"]
+
+[tool.pytest.ini_options]
+addopts = "-vv --capture=tee-sys --show-capture=all"
+log_cli = true
+log_cli_level = "INFO"
+generate_report_on_test = true
