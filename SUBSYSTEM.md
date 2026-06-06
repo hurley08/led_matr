@@ -91,7 +91,7 @@ rt.run(matrix)      # blocks; Ctrl-C exits cleanly
 
 | Field | Unit | Description |
 |-------|------|-------------|
-| `front` | mm | Minimum distance, front sector (315°–45°) |
+| `front` | mm | Minimum distance, front sector (135°–225°) |
 | `left` | mm | Minimum distance, left sector (225°–315°) |
 | `right` | mm | Minimum distance, right sector (45°–135°) |
 | `min_dist` | mm | Global minimum across all points |

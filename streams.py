@@ -33,7 +33,7 @@ class Point:
 
 @dataclass
 class SectorStats:
-    front:    float   # mm — minimum distance in front sector (315°–45°)
+    front:    float   # mm — minimum distance in front sector (135°–225°)
     left:     float   # mm — minimum distance in left sector  (225°–315°)
     right:    float   # mm — minimum distance in right sector ( 45°–135°)
     min_dist: float   # mm — global minimum across all points

@@ -19,7 +19,7 @@ import math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, '/home/pi4/Projects/led_matr')
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
-from rplidar_a1 import RPLidarA1
+from rplidar import RPLidarA1
 
 # ---------------------------------------------------------------------------
 # Matrix configuration

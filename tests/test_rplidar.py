@@ -3,11 +3,11 @@ test_rplidar.py — verifies correct usage of the rplidar library.
 
 Tests cover:
 - _RPLidarSource opens the right serial port
-- Motor is started on construction
+- Driver connects and starts the motor on construction
 - iter_scans() is used to obtain the scan iterator
 - Raw scan tuples (quality, angle, distance) are converted to Point objects
 - stop() calls stop(), stop_motor(), disconnect() in the correct order
-- build_streams(mock=False) passes the port argument through to RPLidar
+- build_streams(mock=False) passes the port argument through to RPLidarA1
 """
 
 import sys
@@ -29,13 +29,16 @@ class TestRPLidarSource:
     def _make_source(self, mock_rplidar_mod, port="/dev/ttyUSB0"):
         """Instantiate _RPLidarSource with a mocked rplidar module."""
         from streams import _RPLidarSource
-        with patch.dict(sys.modules, {"rplidar": mock_rplidar_mod}):
+        with (
+            patch.dict(sys.modules, {"rplidar": mock_rplidar_mod}),
+            patch("time.sleep"),
+        ):
             src = _RPLidarSource(port)
         return src, mock_rplidar_mod
 
     def _mock_rplidar_module(self, raw_scans=None):
         """
-        Build a mock rplidar module whose RPLidar class returns a controllable
+        Build a mock rplidar module whose RPLidarA1 class returns a controllable
         instance.  raw_scans is a list of scans, each a list of
         (quality, angle, distance) tuples.
         """
@@ -46,7 +49,7 @@ class TestRPLidarSource:
         mock_lidar_instance.iter_scans.return_value = iter(raw_scans)
 
         mock_mod = MagicMock()
-        mock_mod.RPLidar.return_value = mock_lidar_instance
+        mock_mod.RPLidarA1.return_value = mock_lidar_instance
         return mock_mod, mock_lidar_instance
 
     # ── Construction ─────────────────────────────────────────────────────────────
@@ -54,12 +57,17 @@ class TestRPLidarSource:
     def test_opens_specified_port(self):
         mock_mod, _ = self._mock_rplidar_module()
         self._make_source(mock_mod, port="/dev/ttyUSB1")
-        mock_mod.RPLidar.assert_called_once_with("/dev/ttyUSB1")
+        mock_mod.RPLidarA1.assert_called_once_with("/dev/ttyUSB1")
 
     def test_uses_default_port(self):
         mock_mod, _ = self._mock_rplidar_module()
         self._make_source(mock_mod)
-        mock_mod.RPLidar.assert_called_once_with("/dev/ttyUSB0")
+        mock_mod.RPLidarA1.assert_called_once_with("/dev/ttyUSB0")
+
+    def test_connects_on_init(self):
+        mock_mod, lidar_inst = self._mock_rplidar_module()
+        self._make_source(mock_mod)
+        lidar_inst.connect.assert_called_once()
 
     def test_starts_motor_on_init(self):
         mock_mod, lidar_inst = self._mock_rplidar_module()
@@ -172,21 +180,23 @@ class TestRPLidarSource:
 
 class TestBuildStreamsReal:
     def test_real_source_passes_port_to_rplidar(self):
-        mock_mod, lidar_inst = MagicMock(), MagicMock()
-        lidar_inst.iter_scans.return_value = iter([])
-        mock_mod.RPLidar.return_value = lidar_inst
+        mock_mod, _ = TestRPLidarSource()._mock_rplidar_module()
 
-        with patch.dict(sys.modules, {"rplidar": mock_mod}):
+        with (
+            patch.dict(sys.modules, {"rplidar": mock_mod}),
+            patch("time.sleep"),
+        ):
             scan_s, _ = build_streams(mock=False, port="/dev/ttyUSB2")
 
-        mock_mod.RPLidar.assert_called_once_with("/dev/ttyUSB2")
+        mock_mod.RPLidarA1.assert_called_once_with("/dev/ttyUSB2")
 
     def test_real_source_starts_motor(self):
-        mock_mod, lidar_inst = MagicMock(), MagicMock()
-        lidar_inst.iter_scans.return_value = iter([])
-        mock_mod.RPLidar.return_value = lidar_inst
+        mock_mod, lidar_inst = TestRPLidarSource()._mock_rplidar_module()
 
-        with patch.dict(sys.modules, {"rplidar": mock_mod}):
+        with (
+            patch.dict(sys.modules, {"rplidar": mock_mod}),
+            patch("time.sleep"),
+        ):
             build_streams(mock=False)
 
         lidar_inst.start_motor.assert_called_once()
@@ -231,7 +241,7 @@ class TestAnalyze:
                 for a, d in angle_dist_pairs]
 
     def test_front_sector_minimum(self):
-        pts  = self._make_points([(0, 300), (10, 800), (180, 100)])
+        pts  = self._make_points([(0, 100), (180, 300), (200, 800)])
         stat = _analyze(pts)
         assert stat.front == pytest.approx(300)
 
