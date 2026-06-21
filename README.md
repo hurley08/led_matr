@@ -42,9 +42,23 @@ Danger thresholds (configurable in `panels/dashboard.py`):
 
 ```bash
 sudo apt-get update && sudo apt-get install -y python3-dev python3-pillow python3-serial
+python3 -m pip install -e ".[rpi]"
 ```
 
+For development or CI without Raspberry Pi hardware:
+
+```bash
+python3 -m pip install -e ".[dev]"
+```
+
+`requirements.txt` and `requirements-ci.txt` are retained temporarily for
+existing environments while dependency management migrates to
+`pyproject.toml`.
+
 ### 2. Build and install the LED matrix library
+
+The `rpi-rgb-led-matrix` Python binding is not published on PyPI, so it is
+built separately rather than listed in the `rpi` dependency extra.
 
 ```bash
 cd rpi-rgb-led-matrix
